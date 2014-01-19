@@ -96,3 +96,55 @@ func GetAddress(db *mgo.Database, address string) (addressdata *AddressData, err
 
         return
 }
+
+// Return the block time at which the address first appeared  
+func AddressFirstSeen(db *mgo.Database, addr string) (firstseen uint64, err error) {
+    txout := new(TxOut)
+	err = db.C("txos").Find(bson.M{"addr": addr}).Sort("blocktime").Limit(1).One(txout)
+	if err != nil {
+		return
+	}
+	firstseen = uint64(txout.BlockTime)
+	return 
+}
+
+func GetReceivedByAddress(db *mgo.Database, addr string) (total uint64, err error) {
+	txos := []*TxOut{}
+	err = db.C("txos").Find(bson.M{"addr": addr}).All(&txos)
+	if err != nil {
+		return
+	}
+	for _, txo := range txos {
+		total +=uint64(txo.Value)
+	}
+	return
+}
+
+func GetSentByAddress(db *mgo.Database, addr string) (total uint64, err error) {
+	txos := []*TxOut{}
+	err = db.C("txos").Find(bson.M{"addr": addr}).All(&txos)
+	if err != nil {
+		return
+	}
+	for _, txo := range txos {
+		if txo.Spent.Spent {
+			total +=uint64(txo.Value)	
+		}
+	}
+	return
+}
+
+func AddressBalance(db *mgo.Database, addr string) (balance uint64, err error) {
+	txos := []*TxOut{}
+	err = db.C("txos").Find(bson.M{"addr": addr}).All(&txos)
+	if err != nil {
+		return
+	}
+	for _, txo := range txos {
+		if !txo.Spent.Spent {
+			balance +=uint64(txo.Value)	
+		}
+	}
+	return
+
+}
