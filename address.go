@@ -83,6 +83,8 @@ func GetAddress(db *mgo.Database, address string) (addressdata *AddressData, err
 
         finalbalance := totalreceived - totalsent
 
+        By(TxBlockTime).Sort(txs)
+
         addressdata.Txs = txs
         addressdata.FinalBalance = finalbalance
         addressdata.TotalSent = totalsent

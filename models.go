@@ -125,12 +125,12 @@ func GetTx(db *mgo.Database, hash string) (tx *Tx, err error) {
 // Fetch Txos and Txins
 func (tx *Tx) Build(db *mgo.Database) (err error) {
   tx.TxIns = []*TxIn{}
-  err = db.C("txis").Find(bson.M{"txhash": tx.Hash}).All(&tx.TxIns)
+  err = db.C("txis").Find(bson.M{"txhash": tx.Hash}).Sort("index").All(&tx.TxIns)
   if err != nil {
     return
   }
   tx.TxOuts = []*TxOut{}
-  err = db.C("txos").Find(bson.M{"txhash": tx.Hash}).All(&tx.TxOuts)
+  err = db.C("txos").Find(bson.M{"txhash": tx.Hash}).Sort("index").All(&tx.TxOuts)
   if err != nil {
     return
   }
@@ -140,7 +140,7 @@ func (tx *Tx) Build(db *mgo.Database) (err error) {
 // Fetch all block transactions
 func (block *Block) FetchTxs(db *mgo.Database) (err error) {
   block.Txs = []*Tx{}
-  err = db.C("txs").Find(bson.M{"blockhash": block.Hash}).All(&block.Txs)
+  err = db.C("txs").Find(bson.M{"blockhash": block.Hash}).Sort("index").All(&block.Txs)
   if err != nil {
     return
   }
