@@ -3,19 +3,20 @@ package btcplex
 import (
 	"sort"
 )
+
 type By func(tx1, tx2 *Tx) bool
 
 func (by By) Sort(txs []*Tx) {
 	ps := &txSorter{
 		txs: txs,
-		by: by,
+		by:  by,
 	}
 	sort.Sort(ps)
 }
 
 type txSorter struct {
 	txs []*Tx
-	by      func(tx1, tx2 *Tx) bool
+	by  func(tx1, tx2 *Tx) bool
 }
 
 func (s *txSorter) Len() int {
