@@ -13,7 +13,7 @@ import (
 
 const GenesisTx = "4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"
 
-// Helper to make call to bitcoind RPC API 
+// Helper to make call to bitcoind RPC API
 func CallBitcoinRPC(address string, method string, id interface{}, params []interface{}) (map[string]interface{}, error) {
 	data, err := json.Marshal(map[string]interface{}{
 		"method": method,

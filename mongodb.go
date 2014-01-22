@@ -6,8 +6,8 @@ import (
 	"os"
 )
 
-func GetMongoDB() (db *mgo.Database, sess *mgo.Session, err error) {
-	uri := "localhost"
+func GetMongoDB(conf *Config) (db *mgo.Database, sess *mgo.Session, err error) {
+	uri := conf.MongoDbHost
 	sess, err = mgo.Dial(uri)
 	if err != nil {
 		fmt.Printf("Can't connect to mongo, go error %v\n", err)
@@ -15,7 +15,7 @@ func GetMongoDB() (db *mgo.Database, sess *mgo.Session, err error) {
 	}
 
 	sess.SetSafe(nil)
-	db = sess.DB("btcplex")
+	db = sess.DB(conf.MongoDbDb)
 
 	err = db.C("blocks").EnsureIndex(mgo.Index{
 		Key:    []string{"hash"},
