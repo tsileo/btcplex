@@ -13,6 +13,7 @@ import (
 
 const GenesisTx = "4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"
 
+// Helper to make call to bitcoind RPC API 
 func CallBitcoinRPC(address string, method string, id interface{}, params []interface{}) (map[string]interface{}, error) {
 	data, err := json.Marshal(map[string]interface{}{
 		"method": method,
@@ -44,13 +45,14 @@ func CallBitcoinRPC(address string, method string, id interface{}, params []inte
 	return result, nil
 }
 
-func GetBlockRPC(db *levigo.DB, block_height uint) (block *Block, txs []*Tx, err error) {
+// Fetch a block via bitcoind RPC API
+func GetBlockRPC(conf *Config, block_height uint) (block *Block, txs []*Tx, err error) {
 	// Get the block hash
-	res, err := CallBitcoinRPC("http://thomas:supert@localhost:7334", "getblockhash", 1, []interface{}{block_height})
+	res, err := CallBitcoinRPC(conf.BitcoindRpcUrl, "getblockhash", 1, []interface{}{block_height})
 	if err != nil {
 		log.Fatalf("Err: %v", err)
 	}
-	res, err = CallBitcoinRPC("http://thomas:supert@localhost:7334", "getblock", 1, []interface{}{res["result"]})
+	res, err = CallBitcoinRPC(conf.BitcoindRpcUrl, "getblock", 1, []interface{}{res["result"]})
 	if err != nil {
 		log.Fatalf("Err: %v", err)
 	}
@@ -72,7 +74,7 @@ func GetBlockRPC(db *levigo.DB, block_height uint) (block *Block, txs []*Tx, err
 	txs = []*Tx{}
 	tout := float64(0)
 	for _, txjson := range blockjson["tx"].([]interface{}) {
-		tx, itout, _ := GetTxRPC(db, txjson.(string), block)
+		tx, itout, _ := GetTxRPC(conf, txjson.(string), block)
 		tout += itout
 		txs = append(txs, tx)
 	}
@@ -82,14 +84,15 @@ func GetBlockRPC(db *levigo.DB, block_height uint) (block *Block, txs []*Tx, err
 	return
 }
 
-func NewGetTxRPC(tx_id string) (tx *Tx, err error) {
+// Fetch a transaction without additional info, used to fetch previous txouts when parsing txins
+func QuickTxRPC(conf *Config, tx_id string) (tx *Tx, err error) {
 	// Hard coded genesis tx since it's not included in bitcoind RPC API
 	if tx_id == GenesisTx {
 		return
 		//return TxData{GenesisTx, []TxIn{}, []TxOut{{"1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa", 5000000000}}}, nil
 	}
 	// Get the TX from bitcoind RPC API
-	res_tx, err := CallBitcoinRPC("http://thomas:supert@localhost:7334", "getrawtransaction", 1, []interface{}{tx_id, 1})
+	res_tx, err := CallBitcoinRPC(conf.BitcoindRpcUrl, "getrawtransaction", 1, []interface{}{tx_id, 1})
 	if err != nil {
 		log.Fatalf("Err: %v", err)
 	}
@@ -141,14 +144,15 @@ func NewGetTxRPC(tx_id string) (tx *Tx, err error) {
 	return
 }
 
-func GetTxRPC(db *levigo.DB, tx_id string, block *Block) (tx *Tx, tout float64, err error) {
+// Fetch a transaction via bticoind RPC API
+func GetTxRPC(conf *Config, tx_id string, block *Block) (tx *Tx, tout float64, err error) {
 	// Hard coded genesis tx since it's not included in bitcoind RPC API
 	if tx_id == GenesisTx {
 		return
 		//return TxData{GenesisTx, []TxIn{}, []TxOut{{"1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa", 5000000000}}}, nil
 	}
 	// Get the TX from bitcoind RPC API
-	res_tx, err := CallBitcoinRPC("http://thomas:supert@localhost:7334", "getrawtransaction", 1, []interface{}{tx_id, 1})
+	res_tx, err := CallBitcoinRPC(conf.BitcoindRpcUrl, "getrawtransaction", 1, []interface{}{tx_id, 1})
 	if err != nil {
 		log.Fatalf("Err: %v", err)
 	}
@@ -162,7 +166,6 @@ func GetTxRPC(db *levigo.DB, tx_id string, block *Block) (tx *Tx, tout float64, 
 	tx.Version = uint32(txjson["version"].(float64))
 	tx.LockTime = uint32(txjson["locktime"].(float64))
 	tx.Size = uint32(len(txjson["hex"].(string)) / 2)
-	//tx.
 
 	total_tx_out := uint(0)
 	total_tx_in := uint(0)
@@ -178,7 +181,7 @@ func GetTxRPC(db *levigo.DB, tx_id string, block *Block) (tx *Tx, tout float64, 
 			txinjsonprevout.Hash = txijson.(map[string]interface{})["txid"].(string)
 			txinjsonprevout.Vout = uint32(txijson.(map[string]interface{})["vout"].(float64))
 
-			prevtx, _ := NewGetTxRPC(txinjsonprevout.Hash)
+			prevtx, _ := QuickTxRPC(conf, txinjsonprevout.Hash)
 			prevout := prevtx.TxOuts[txinjsonprevout.Vout]
 
 			txinjsonprevout.Address = prevout.Addr
