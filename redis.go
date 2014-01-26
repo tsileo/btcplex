@@ -14,11 +14,10 @@ func GetRedis(conf *Config) (pool *redis.Pool, err error) {
 			if err != nil {
 				return nil, err
 			}
-			//                 if _, err := c.Do("AUTH", password); err != nil {
-			//                     c.Close()
-			//                     return nil, err
-			//               }
-			//                 return c, err
+			//if _, err := c.Do("AUTH", password); err != nil {
+			//    c.Close()
+			//    return nil, err
+			//}
 			return c, err
 		},
 		TestOnBorrow: func(c redis.Conn, t time.Time) error {
@@ -28,3 +27,11 @@ func GetRedis(conf *Config) (pool *redis.Pool, err error) {
 	}
 	return
 }
+
+// LUA Script used to publish the same message to multiple channels
+var multiPublishScript = redis.NewScript(0, `
+local res = {}
+for i = 2, #ARGV do
+  table.insert(res, redis.call('publish', ARGV[i], ARGV[1]))
+end
+return res`)

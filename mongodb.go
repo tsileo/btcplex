@@ -86,4 +86,6 @@ func EnsureIndexes(db *mgo.Database) (err error) {
 	if err != nil {
 		return
 	}
+
+	return
 }
