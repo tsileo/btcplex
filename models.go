@@ -27,24 +27,24 @@ type Block struct {
 }
 
 type Tx struct {
-	Id            bson.ObjectId  `json:"-" bson:"_id"`
-	Hash          string         `json:"hash"`
-	Index         uint32         `json:"-"`
-	Size          uint32         `json:"size"`
-	LockTime      uint32         `json:"lock_time"`
-	Version       uint32         `json:"ver"`
-	TxInCnt       uint32         `json:"vin_sz"`
-	TxOutCnt      uint32         `json:"vout_sz"`
-	TxIns         []*TxIn        `json:"in" bson:"-"`
-	TxOuts        []*TxOut       `json:"out" bson:"-"`
-	TotalOut      uint64         `json:"vout_total"`
-	TotalIn       uint64         `json:"vin_total"`
-	BlockHash     string         `json:"block_hash"`
-	BlockHeight   uint           `json:"block_height"`
-	BlockTime     uint32         `json:"block_time"`
-	FirstSeenTime     uint32     `json:"-"`
-	FirstSeenHeight   uint       `json:"-"`
-	TxAddressInfo *TxAddressInfo `json:"-"`
+	Id              bson.ObjectId  `json:"-" bson:"_id"`
+	Hash            string         `json:"hash"`
+	Index           uint32         `json:"-"`
+	Size            uint32         `json:"size"`
+	LockTime        uint32         `json:"lock_time"`
+	Version         uint32         `json:"ver"`
+	TxInCnt         uint32         `json:"vin_sz"`
+	TxOutCnt        uint32         `json:"vout_sz"`
+	TxIns           []*TxIn        `json:"in" bson:"-"`
+	TxOuts          []*TxOut       `json:"out" bson:"-"`
+	TotalOut        uint64         `json:"vout_total"`
+	TotalIn         uint64         `json:"vin_total"`
+	BlockHash       string         `json:"block_hash"`
+	BlockHeight     uint           `json:"block_height"`
+	BlockTime       uint32         `json:"block_time"`
+	FirstSeenTime   uint32         `json:"-"`
+	FirstSeenHeight uint           `json:"-"`
+	TxAddressInfo   *TxAddressInfo `json:"-"`
 }
 
 type TxAddressInfo struct {
