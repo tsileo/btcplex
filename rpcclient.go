@@ -218,7 +218,6 @@ func GetRawMemPoolRPC(conf *Config) (unconfirmedtxs []string, err error) {
 	if err != nil {
 		return
 	}
-	fmt.Printf("%+v", res)
 	unconfirmedtxs = []string{}
 	for _, txid := range res["result"].([]interface{}) {
 		unconfirmedtxs = append(unconfirmedtxs, txid.(string))
@@ -231,7 +230,6 @@ func GetRawMemPoolVerboseRPC(conf *Config) (unconfirmedtxs map[string]interface{
 	if err != nil {
 		return
 	}
-	fmt.Printf("%+v", res)
 	unconfirmedtxs = res["result"].(map[string]interface{})
 	return
 }
