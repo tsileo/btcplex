@@ -74,7 +74,7 @@ func GetBlockRPC(conf *Config, block_height uint) (block *Block, txs []*Tx, err 
 	txs = []*Tx{}
 	tout := float64(0)
 	for _, txjson := range blockjson["tx"].([]interface{}) {
-		tx, itout, _ := GetTxRPC(conf, txjson.(string), block)
+		tx, itout, _ := GetBlockTxRPC(conf, txjson.(string), block)
 		tout += itout
 		txs = append(txs, tx)
 	}
@@ -85,7 +85,7 @@ func GetBlockRPC(conf *Config, block_height uint) (block *Block, txs []*Tx, err 
 }
 
 // Fetch a transaction without additional info, used to fetch previous txouts when parsing txins
-func QuickTxRPC(conf *Config, tx_id string) (tx *Tx, err error) {
+func GetTxRPC(conf *Config, tx_id string) (tx *Tx, err error) {
 	// Hard coded genesis tx since it's not included in bitcoind RPC API
 	if tx_id == GenesisTx {
 		return
@@ -97,6 +97,8 @@ func QuickTxRPC(conf *Config, tx_id string) (tx *Tx, err error) {
 		log.Fatalf("Err: %v", err)
 	}
 	txjson := res_tx["result"].(map[string]interface{})
+
+	log.Printf("RAWTX:%+v\n", txjson)
 
 	tx = new(Tx)
 	tx.Hash = tx_id
@@ -145,7 +147,7 @@ func QuickTxRPC(conf *Config, tx_id string) (tx *Tx, err error) {
 }
 
 // Fetch a transaction via bticoind RPC API
-func GetTxRPC(conf *Config, tx_id string, block *Block) (tx *Tx, tout float64, err error) {
+func GetBlockTxRPC(conf *Config, tx_id string, block *Block) (tx *Tx, tout float64, err error) {
 	// Hard coded genesis tx since it's not included in bitcoind RPC API
 	if tx_id == GenesisTx {
 		return
@@ -181,7 +183,7 @@ func GetTxRPC(conf *Config, tx_id string, block *Block) (tx *Tx, tout float64, e
 			txinjsonprevout.Hash = txijson.(map[string]interface{})["txid"].(string)
 			txinjsonprevout.Vout = uint32(txijson.(map[string]interface{})["vout"].(float64))
 
-			prevtx, _ := QuickTxRPC(conf, txinjsonprevout.Hash)
+			prevtx, _ := GetTxRPC(conf, txinjsonprevout.Hash)
 			prevout := prevtx.TxOuts[txinjsonprevout.Vout]
 
 			txinjsonprevout.Address = prevout.Addr
@@ -210,5 +212,18 @@ func GetTxRPC(conf *Config, tx_id string, block *Block) (tx *Tx, tout float64, e
 	tx.TxInCnt = uint32(len(tx.TxIns))
 	tx.TotalOut = uint64(total_tx_out)
 	tx.TotalIn = uint64(total_tx_in)
+	return
+}
+
+func GetRawMemPoolRPC(conf *Config) (unconfirmedtxs []string, err error) {
+	res, err := CallBitcoinRPC(conf.BitcoindRpcUrl, "getrawmempool", 1, []interface{}{})
+	if err != nil {
+		return
+	}
+	fmt.Printf("%+v", res)
+	unconfirmedtxs = []string{}
+	for _, txid := range res["result"].([]interface{}) {
+		unconfirmedtxs = append(unconfirmedtxs, txid.(string))
+	}
 	return
 }
