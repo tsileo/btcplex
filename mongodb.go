@@ -17,6 +17,11 @@ func GetMongoDB(conf *Config) (db *mgo.Database, sess *mgo.Session, err error) {
 	sess.SetSafe(nil)
 	db = sess.DB(conf.MongoDbDb)
 
+	return
+}
+
+func EnsureIndexes(db *mgo.Database) (err error) {
+	// TODO set background indexes
 	err = db.C("blocks").EnsureIndex(mgo.Index{
 		Key:    []string{"hash"},
 		Unique: true,
@@ -81,6 +86,4 @@ func GetMongoDB(conf *Config) (db *mgo.Database, sess *mgo.Session, err error) {
 	if err != nil {
 		return
 	}
-
-	return
 }
