@@ -159,23 +159,3 @@ func GetLastXBlocks(db *mgo.Database, start uint, stop uint) (blocks []*Block, e
 	}
 	return
 }
-
-func main() {
-	uri := "localhost"
-	sess, err := mgo.Dial(uri)
-	if err != nil {
-		fmt.Printf("Can't connect to mongo, go error %v\n", err)
-		os.Exit(1)
-	}
-	defer sess.Close()
-
-	sess.SetSafe(&mgo.Safe{})
-	db := sess.DB("btcplex")
-
-	log.Println("Before")
-	bl, err := GetLastXBlocks(db, uint(100), uint(50))
-	//bl.FetchTxs(db)
-	//err = tx.Build(db)
-	log.Printf("%+v, %v", bl[0], err)
-	log.Println("After")
-}

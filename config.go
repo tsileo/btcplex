@@ -13,7 +13,7 @@ type Config struct {
 	MongoDbHost        string `json:"mongodb_host"`
 	MongoDbDb          string `json:"mongodb_db"`
 	LevelDbPath        string `json:"leveldb_path"`
-	AppPort            uint   `json:"àpp_port"`
+	AppPort            uint   `json:"app_port"`
 }
 
 // Load configuration from json file
