@@ -3,7 +3,6 @@ package btcplex
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/jmhodges/levigo"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -108,9 +107,6 @@ func GetRawTxRPC(conf *Config, tx_id string) (tx *Tx, err error) {
 	total_tx_out := uint(0)
 	total_tx_in := uint(0)
 
-	ro := levigo.NewReadOptions()
-	defer ro.Close()
-
 	for _, txijson := range txjson["vin"].([]interface{}) {
 		_, coinbase := txijson.(map[string]interface{})["coinbase"]
 		if !coinbase {
@@ -170,8 +166,6 @@ func GetTxRPC(conf *Config, tx_id string, block *Block) (tx *Tx, tout float64, e
 	total_tx_out := uint(0)
 	total_tx_in := uint(0)
 	tout = float64(0)
-	ro := levigo.NewReadOptions()
-	defer ro.Close()
 
 	for _, txijson := range txjson["vin"].([]interface{}) {
 		_, coinbase := txijson.(map[string]interface{})["coinbase"]
