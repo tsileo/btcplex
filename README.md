@@ -10,10 +10,10 @@ BTCplex is an open source [Bitcoin](http://bitcoin.org/) block chain browser wri
 
 ### Backend
 
-I tried a lot of databases ([LevelDB](https://code.google.com/p/leveldb/), [RethinkDB](http://rethinkdb.com/), [MongoDB](http://mongodb.org/), and [Ardb](https://github.com/yinqiwen/ardb)), and [SSDB](https://github.com/ideawu/ssdb) was the faster, I didn't wanted to use Redis because it would need a lot of RAM and I wanted persistent storage. But it still need [Redis](http://redis.io/) for PubSub (used for SSE) and [LevelDB](https://code.google.com/p/leveldb/) for caching (during the initial import).
+I tried a lot of databases ([LevelDB](https://code.google.com/p/leveldb/), [RethinkDB](http://rethinkdb.com/), [MongoDB](http://mongodb.org/), and [Ardb](https://github.com/yinqiwen/ardb)), and [SSDB](https://github.com/ideawu/ssdb) was the faster, I didn't wanted to use Redis because it would need a lot of RAM and I wanted persistent storage but since SSDB is a drop-in replacement for Redis, you can only use Redis if you prefer. If you choose to use SSDB, [Redis](http://redis.io/) is still needed for PubSub (used for SSE). [LevelDB](https://code.google.com/p/leveldb/) is used for caching during the initial import.
 
 - [Redis](http://redis.io/)
-- [SSDB](https://github.com/ideawu/ssdb)
+- [SSDB](https://github.com/ideawu/ssdb) or Redis
 - [LevelDB](https://code.google.com/p/leveldb/)
 
 ## Donation
