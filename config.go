@@ -9,9 +9,8 @@ import (
 type Config struct {
 	BitcoindBlocksPath string `json:"bitcoind_blocks_path"`
 	BitcoindRpcUrl     string `json:"bitcoind_rpc_url"`
+	SsdbHost           string `json:"ssdb_host"`
 	RedisHost          string `json:"redis_host"`
-	MongoDbHost        string `json:"mongodb_host"`
-	MongoDbDb          string `json:"mongodb_db"`
 	LevelDbPath        string `json:"leveldb_path"`
 	AppPort            uint   `json:"app_port"`
 }

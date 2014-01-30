@@ -2,8 +2,7 @@
 	"bitcoind_rpc_url": "http://user:pass@localhost:8334",
 	"bitcoind_blocks_path": "/home/thomas/.bitcoin/blocks",
 	"redis_host": "localhost:6379",
-	"mongodb_host": "localhost:2709",
-	"mongodb_db": "btcplex",
+	"ssdb_host": "localhost:6381",
 	"leveldb_path": "/home/thomas/btcplex_leveldb",
 	"app_port": 6033
 }
