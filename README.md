@@ -4,6 +4,10 @@ BTCplex is an open source [Bitcoin](http://bitcoin.org/) block chain browser wri
 
 ## Architecture
 
+### Webapp
+
+- [Martini](http://martini.codegangsta.io/)
+
 ### Backend
 
 I tried a lot of databases ([LevelDB](https://code.google.com/p/leveldb/), [RethinkDB](http://rethinkdb.com/), [MongoDB](http://mongodb.org/), and [Ardb](https://github.com/yinqiwen/ardb)), and [SSDB](https://github.com/ideawu/ssdb) was the faster, I didn't wanted to use Redis because it would need a lot of RAM and I wanted persistent storage. But it still need [Redis](http://redis.io/) for PubSub (used for SSE) and [LevelDB](https://code.google.com/p/leveldb/) for caching (during the initial import).
