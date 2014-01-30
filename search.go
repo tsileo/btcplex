@@ -1,38 +1,41 @@
 package btcplex
 
 import (
-	"labix.org/v2/mgo"
+    "github.com/garyburd/redigo/redis"
 	"strconv"
+	"fmt"
 )
 
-func IsBlockHeight(db *mgo.Database, q string) (s bool, res string) {
+func IsBlockHeight(rpool *redis.Pool, q string) (s bool, res string) {
 	height, err := strconv.ParseUint(q, 10, 0)
 	if err != nil {
 		return false, ""
 	}
-	block, err := GetBlockByHeight(db, uint(height))
-	if err != nil {
-		return false, ""
-	}
-	return true, block.Hash
+	fmt.Sprintf("%v", height)
+	//block, err := GetBlockByHeight(db, uint(height))
+	//if err != nil {
+	//	return false, ""
+	//}
+	//return true, block.Hash
+	return false, ""
 }
 
-func IsBlockHash(db *mgo.Database, q string) (s bool, res string) {
+func IsBlockHash(rpool *redis.Pool, q string) (s bool, res string) {
 	if len(q) != 64 {
 		return false, ""
 	}
-	block, err := GetBlockByHash(db, q)
+	block, err := GetBlockByHash(rpool, q)
 	if err != nil {
 		return false, ""
 	}
 	return true, block.Hash
 }
 
-func IsTxHash(db *mgo.Database, q string) (s bool, res string) {
+func IsTxHash(rpool *redis.Pool, q string) (s bool, res string) {
 	if len(q) != 64 {
 		return false, q
 	}
-	tx, err := GetTx(db, q)
+	tx, err := GetTx(rpool, q)
 	if err != nil {
 		return false, ""
 	}

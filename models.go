@@ -1,12 +1,13 @@
 package btcplex
 
 import (
-	"labix.org/v2/mgo"
-	"labix.org/v2/mgo/bson"
+    "encoding/json"
+    "fmt"
+    "github.com/garyburd/redigo/redis"
+    "github.com/bradfitz/iter"
 )
 
 type Block struct {
-	Id         bson.ObjectId `json:"-" bson:"_id"`
 	Hash       string        `json:"hash"`
 	Height     uint          `json:"height"`
 	Txs        []*Tx         `json:"tx,omitempty" bson:"-"`
@@ -24,7 +25,6 @@ type Block struct {
 }
 
 type Tx struct {
-	Id              bson.ObjectId  `json:"-" bson:"_id"`
 	Hash            string         `json:"hash"`
 	Index           uint32         `json:"-"`
 	Size            uint32         `json:"size"`
@@ -51,7 +51,6 @@ type TxAddressInfo struct {
 }
 
 type TxOut struct {
-	Id        bson.ObjectId `json:"-" bson:"_id"`
 	TxHash    string        `json:"-"`
 	BlockHash string        `json:"-"`
 	BlockTime uint32        `json:"-"`
@@ -69,7 +68,6 @@ type PrevOut struct {
 }
 
 type TxIn struct {
-	Id        bson.ObjectId `json:"-" bson:"_id"`
 	TxHash    string        `json:"-"`
 	BlockHash string        `json:"-"`
 	BlockTime uint32        `json:"-"`
@@ -89,70 +87,110 @@ func GetBlockReward(height uint) uint {
 	return 50e8 >> (height / 210000)
 }
 
-// Fetch a block by height
-func GetBlockByHeight(db *mgo.Database, height uint) (block *Block, err error) {
-	block = new(Block)
-	err = db.C("blocks").Find(bson.M{"height": height}).One(block)
-	if err != nil {
-		return
-	}
-	return
+// Return block hash for the given height
+func GetBlockHash(rpool *redis.Pool, height uint) (hash string, err error) {
+    c := rpool.Get()
+    defer c.Close()
+    hash, err = redis.String(c.Do("GET", fmt.Sprintf("block:height:%v", height)))
+    return
 }
 
-// Fetch a block by hash
-func GetBlockByHash(db *mgo.Database, hash string) (block *Block, err error) {
-	block = new(Block)
-	err = db.C("blocks").Find(bson.M{"hash": hash}).One(block)
-	if err != nil {
-		return
-	}
-	return
+// Get a block by its hash
+func GetBlockByHash(rpool *redis.Pool, hash string) (block *Block, err error) {
+    c := rpool.Get()
+    defer c.Close()
+    blockjson, err := redis.String(c.Do("GET", fmt.Sprintf("block:%v", hash)))
+    if err != nil {
+        return
+    }
+    block = new(Block)
+    err = json.Unmarshal([]byte(blockjson), block)
+    return
+}
+
+func (block *Block) FetchTxs(rpool *redis.Pool) (err error) {
+    c := rpool.Get()
+    defer c.Close()
+    txskeys, _ := redis.Strings(c.Do("ZRANGE", fmt.Sprintf("block:%v:txs", block.Hash), 0, 1000))
+    txskeysi := []interface{}{}
+    for _, txkey := range txskeys {
+        txskeysi = append(txskeysi, txkey)
+    }
+    txsjson, _ := redis.Strings(c.Do("MGET", txskeysi...))
+    block.Txs = []*Tx{}
+    for _, txjson := range txsjson {
+        ctx := new(Tx)
+        err = json.Unmarshal([]byte(txjson), ctx)
+        if err != nil {
+            return
+        }
+        ctx.Build(rpool)
+        block.Txs = append(block.Txs, ctx)
+    }
+    return
 }
 
 // Fetch a transaction by hash
-func GetTx(db *mgo.Database, hash string) (tx *Tx, err error) {
-	tx = new(Tx)
-	err = db.C("txs").Find(bson.M{"hash": hash}).One(tx)
-	if err != nil {
-		return
-	}
-	return
+func GetTx(rpool *redis.Pool, hash string) (tx *Tx, err error) {
+    c := rpool.Get()
+    defer c.Close()
+    tx = new(Tx)
+    txjson, _ := redis.String(c.Do("GET", fmt.Sprintf("tx:%v", hash)))
+    err = json.Unmarshal([]byte(txjson), tx)
+    tx.Build(rpool)
+    return
 }
 
 // Fetch Txos and Txins
-func (tx *Tx) Build(db *mgo.Database) (err error) {
-	tx.TxIns = []*TxIn{}
-	err = db.C("txis").Find(bson.M{"txhash": tx.Hash}).Sort("index").All(&tx.TxIns)
-	if err != nil {
-		return
-	}
-	tx.TxOuts = []*TxOut{}
-	err = db.C("txos").Find(bson.M{"txhash": tx.Hash}).Sort("index").All(&tx.TxOuts)
-	if err != nil {
-		return
-	}
-	return
-}
-
-// Fetch all block transactions
-func (block *Block) FetchTxs(db *mgo.Database) (err error) {
-	block.Txs = []*Tx{}
-	err = db.C("txs").Find(bson.M{"blockhash": block.Hash}).Sort("index").All(&block.Txs)
-	if err != nil {
-		return
-	}
-	for _, tx := range block.Txs {
-		tx.Build(db)
-	}
-	return
+func (tx *Tx) Build(rpool *redis.Pool) (err error) {
+    c := rpool.Get()
+    defer c.Close()
+    tx.TxIns = []*TxIn{}
+    tx.TxOuts = []*TxOut{}
+    txinskeys := []interface{}{}
+    for i := range iter.N(int(tx.TxInCnt)) {
+        txinskeys = append(txinskeys, fmt.Sprintf("txi:%v:%v", tx.Hash, i))
+    }
+    txinsjson, _ := redis.Strings(c.Do("MGET", txinskeys...))
+    for _, txinjson := range txinsjson {
+        ctxi := new(TxIn)
+        err = json.Unmarshal([]byte(txinjson), ctxi)
+        tx.TxIns = append(tx.TxIns, ctxi)
+    }
+    txoutskeys := []interface{}{}
+    for i := range iter.N(int(tx.TxOutCnt)) {
+        txoutskeys = append(txoutskeys, fmt.Sprintf("txo:%v:%v", tx.Hash, i))
+    }
+    txoutsjson, _ := redis.Strings(c.Do("MGET", txoutskeys...))
+    for _, txoutjson := range txoutsjson {
+        ctxo := new(TxOut)
+        err = json.Unmarshal([]byte(txoutjson), ctxo)
+        tx.TxOuts = append(tx.TxOuts, ctxo)
+    }
+    return
 }
 
 // Return last X blocks from stop to start (both included)
-func GetLastXBlocks(db *mgo.Database, start uint, stop uint) (blocks []*Block, err error) {
-	blocks = []*Block{}
-	err = db.C("blocks").Find(bson.M{"height": bson.M{"$lte": start, "$gte": stop}}).Sort("-height").All(&blocks)
-	if err != nil {
-		return
-	}
-	return
+func GetLastXBlocks(rpool *redis.Pool, start uint, stop uint) (blocks []*Block, err error) {
+    c := rpool.Get()
+    defer c.Close()
+    blocks = []*Block{}
+    cur := int(start)
+    blockskeys := []interface{}{}
+    for _ = range iter.N(int(start - stop)) {
+        chash, cerr := GetBlockHash(rpool, uint(cur))
+        if cerr != nil {
+            err = cerr
+            return
+        }
+        blockskeys = append(blockskeys, fmt.Sprintf("block:%v", chash))
+        cur -= 1
+    }
+    blocksjson, _ := redis.Strings(c.Do("MGET", blockskeys...))
+    for _, blockjson := range blocksjson {
+        cblock := new(Block)
+        err = json.Unmarshal([]byte(blockjson), cblock)
+        blocks = append(blocks, cblock)
+    }
+    return
 }
