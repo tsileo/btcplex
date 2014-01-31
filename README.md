@@ -22,9 +22,9 @@ Blocks, transactions, TxIns, TxOuts are stored in JSON format.
 
 ### Hashes
 
-BTCplex keeps one hashes per address (``addr:%v:h`` (address)) containing ReceivedCnt, SentCnt, TotalSent, TotalReceived. It also store one sorted for each block containing transaction references sorted by index (``block:%v:txs`` (hash)).
+BTCplex keeps one hashes per address (``addr:%v:h`` (address)) containing ReceivedCnt, SentCnt, TotalSent, TotalReceived. 
 
-Hash key for address data:
+Hash keys for address data:
 
 - ``rc`` -> ReceivedCnt
 - ``sc`` -> SentCnt
@@ -34,6 +34,8 @@ Hash key for address data:
 ### Sorted Sets
 
 BTCplex keeps one sorted set per address (``addr:%v`` (address)) containing keys of every TxIn/TxOut sorted by BlockTime.
+
+It also store one sorted for each block containing transaction references sorted by index (``block:%v:txs`` (hash)).
 
 ### Webapp
 
