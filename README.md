@@ -4,6 +4,37 @@ BTCplex is an open source [Bitcoin](http://bitcoin.org/) block chain browser wri
 
 ## Architecture
 
+## Available keys
+
+I will try to keep an updated list of how data is stored in SSDB by data type.
+
+### Strings
+
+Blocks, transactions, TxIns, TxOuts are stored in JSON format.
+
+- ``block:height:%v`` (height) -> Contains the hash for the given height
+- ``block:%v`` (hash) -> Block data in JSON format
+- ``tx:%v`` (hash) -> Transaction data in JSON format
+- ``txi:%v:%v`` (hash, index) -> TxIn data in JSON format
+- ``txo:%v:%v`` (hash, index) -> TxOut data in JSON format
+- ``txo:%v:%v:spent`` (hash, index) -> Spent data in JSON format
+
+
+### Hashes
+
+BTCplex keeps one hashes per address (``addr:%v:h`` (address)) containing ReceivedCnt, SentCnt, TotalSent, TotalReceived. It also store one sorted for each block containing transaction references sorted by index (``block:%v:txs`` (hash)).
+
+Hash key for address data:
+
+- ``rc`` -> ReceivedCnt
+- ``sc`` -> SentCnt
+- ``ts`` -> TotalSent
+- ``tr`` -> TotalReceived
+
+### Sorted Sets
+
+BTCplex keeps one sorted set per address (``addr:%v`` (address)) containing keys of every TxIn/TxOut sorted by BlockTime.
+
 ### Webapp
 
 - [Martini](http://martini.codegangsta.io/)
