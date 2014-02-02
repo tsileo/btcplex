@@ -2,15 +2,28 @@
 
 BTCplex is an open source [Bitcoin](http://bitcoin.org/) block chain browser written in [Go](http://golang.org/), it allows you to search and navigate the [block chain](https://en.bitcoin.it/wiki/Block_chain).
 
+
+## Roadmap
+
+Some features that are on my TODO list:
+
+- An easy way to monitor Bitcoin address via API (maybe using Webhooks
+- Convert BTC to USD easily
+- An official Python and JS API wrapper
+- A Watch-only addresses page)
+
+
 ## Architecture
 
-## Available keys
+
+### Available keys
 
 I will try to keep an updated list of how data is stored in SSDB by data type.
 
-### Strings
 
-Blocks, transactions, TxIns, TxOuts are stored in JSON format.
+#### Strings
+
+Blocks, transactions, TxIns, TxOuts are stored in JSON format (SSDB support Redis protocol but it doesn't support MULTI, so I can't use hashes if I can't retrieve multiple hashes in one call, also, some JSON objects are nested, so I stick to JSON.
 
 - ``block:height:%v`` (height) -> Contains the hash for the given height
 - ``block:%v`` (hash) -> Block data in JSON format
@@ -20,26 +33,27 @@ Blocks, transactions, TxIns, TxOuts are stored in JSON format.
 - ``txo:%v:%v:spent`` (hash, index) -> Spent data in JSON format
 
 
-### Hashes
+#### Hashes
 
 BTCplex keeps one hashes per address (``addr:%v:h`` (address)) containing ReceivedCnt, SentCnt, TotalSent, TotalReceived. 
 
 Hash keys for address data:
 
-- ``rc`` -> ReceivedCnt
-- ``sc`` -> SentCnt
 - ``ts`` -> TotalSent
 - ``tr`` -> TotalReceived
 
-### Sorted Sets
 
-BTCplex keeps one sorted set per address (``addr:%v`` (address)) containing keys of every TxIn/TxOut sorted by BlockTime.
+#### Sorted Sets
+
+BTCplex keeps three sorted set per address (``addr:%v`` (address), ``addr:%v:received`` (address), ``addr:%v:sent`` (address)) containing Tx hash for every transaction involving the address sorted by BlockTime.
 
 It also store one sorted for each block containing transaction references sorted by index (``block:%v:txs`` (hash)).
+
 
 ### Webapp
 
 - [Martini](http://martini.codegangsta.io/)
+
 
 ### Backend
 
@@ -49,9 +63,16 @@ I tried a lot of databases ([LevelDB](https://code.google.com/p/leveldb/), [Reth
 - [SSDB](https://github.com/ideawu/ssdb) or Redis
 - [LevelDB](https://code.google.com/p/leveldb/)
 
+
 ## Donation
 
 BTC: 16obt7HXb3PmyDb1wZMA2X7HYPUPHp45GB
+
+
+## Feedback / Support
+
+You can ping me @trucsdedev/contact@btcplex.com/thomas.sileo@gmail.com if you have any feedback/issue.
+
 
 ## License
 
