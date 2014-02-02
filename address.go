@@ -1,9 +1,7 @@
 package btcplex
 
 import (
-    "encoding/json"
     "fmt"
-    "strings"
     "strconv"
     "github.com/garyburd/redigo/redis"
 )
@@ -19,65 +17,60 @@ type AddressData struct {
 	Txs           []*Tx  `json:"txs"`
 }
 
+type AddressHash struct {
+    TotalSent       int `redis:"ts"`
+    TotalReceived   int `redis:"tr"`
+}
+
 func GetAddress(rpool *redis.Pool, address string) (addressdata *AddressData, err error) {
     c := rpool.Get()
     defer c.Close()
 
     addressdata = new(AddressData)
-    txsindex := map[string]interface{}{}
-
-    txreceived := map[string]interface{}{}
-    txsent := map[string]interface{}{}
-
+    txs1 := []*Tx{}
     txs := []*Tx{}
 
     zkey := fmt.Sprintf("addr:%v", address)
-    cnt, _ := redis.Int(c.Do("ZCARD", zkey))
-    data, _ := redis.Strings(c.Do("ZREVRANGE", zkey, 0, cnt))
+    txscnt, _ := redis.Int(c.Do("ZCARD", zkey))
+    data, _ := redis.Strings(c.Do("ZREVRANGE", zkey, 0, 50))
 
-    for _, txd := range data {
-        txds := strings.Split(txd, ":")
-        chash := txds[1]
-        _, inindex := txsindex[chash]
-        if !inindex {
-            tx, _ := GetTx(rpool, txds[1])
-            txsindex[chash] = tx
-        }
+    addressh := new(AddressHash)
+    v, err := redis.Values(c.Do("HGETALL", fmt.Sprintf("addr:%v:h", address)))
+    if err != nil {
+        panic(err)
+    }
+    if err := redis.ScanStruct(v, addressh); err != nil {
+        panic(err)
     }
 
-    totalreceived := uint64(0)
-    totalsent := uint64(0)
+    for _, txd := range data {
+        tx, _ := GetTx(rpool, txd)
+        txs1 = append(txs1, tx)
+    }
 
-    for _, tx := range txsindex {
-        ctx := tx.(*Tx)
+    totalreceived := uint64(addressh.TotalReceived)
+    totalsent := uint64(addressh.TotalSent)
+    finalbalance := totalreceived - totalreceived
+    sentcnt, _ := redis.Int(c.Do("ZCARD", fmt.Sprintf("addr:%v:sent", address)))
+    receivedcnt, _ := redis.Int(c.Do("ZCARD", fmt.Sprintf("addr:%v:received", address)))
+
+    for _, ctx := range txs1 {
         txaddressinfo := new(TxAddressInfo)
         for _, txi := range ctx.TxIns {
             if txi.PrevOut.Address == address {
                 txaddressinfo.InTxIn = true
                 txaddressinfo.Value -= int64(txi.PrevOut.Value)
-                totalsent += txi.PrevOut.Value
-                _, inindex := txsent[ctx.Hash]
-                if !inindex {
-                    txsent[ctx.Hash] = true
-                }
             }
         }
         for _, txo := range ctx.TxOuts {
             if txo.Addr == address {
                 txaddressinfo.InTxOut = true
                 txaddressinfo.Value += int64(txo.Value)
-                totalreceived += txo.Value
-                _, inindex := txreceived[ctx.Hash]
-                if !inindex {
-                    txreceived[ctx.Hash] = true
-                }
             }
         }
         ctx.TxAddressInfo = txaddressinfo
         txs = append(txs, ctx)
     }
-
-    finalbalance := totalreceived - totalsent
 
     //By(TxBlockTime).Sort(txs)
 
@@ -85,10 +78,10 @@ func GetAddress(rpool *redis.Pool, address string) (addressdata *AddressData, er
     addressdata.FinalBalance = finalbalance
     addressdata.TotalSent = totalsent
     addressdata.TotalReceived = totalreceived
-    addressdata.TxCnt = uint64(len(txs))
+    addressdata.TxCnt = uint64(txscnt)
     addressdata.Address = address
-    addressdata.SentCnt = uint64(len(txsent))
-    addressdata.ReceivedCnt = uint64(len(txreceived))
+    addressdata.SentCnt = uint64(sentcnt)
+    addressdata.ReceivedCnt = uint64(receivedcnt)
 
     return
 }
@@ -99,7 +92,7 @@ func AddressFirstSeen(rpool *redis.Pool, address string) (firstseen uint64, err 
     defer c.Close()
 
     zkey := fmt.Sprintf("addr:%v", address)
-    data, _ := redis.Strings(c.Do("ZREVRANGE", zkey, 0, 0, "withscores"))
+    data, _ := redis.Strings(c.Do("ZRANGE", zkey, 0, 0, "withscores"))
     txoutblocktime, _ := strconv.Atoi(data[1])
     firstseen = uint64(txoutblocktime)
     return
@@ -109,19 +102,15 @@ func GetReceivedByAddress(rpool *redis.Pool, address string) (total uint64, err 
     c := rpool.Get()
     defer c.Close()
 
-    zkey := fmt.Sprintf("addr:%v", address)
-    cnt, _ := redis.Int(c.Do("ZCARD", zkey))
-    data, _ := redis.Strings(c.Do("ZREVRANGE", zkey, 0, cnt))
-
-    for _, txd := range data {
-        if strings.Contains(txd, "txo:") {
-            ctxo := new(TxOut)
-            txoutjson, _ := redis.String(c.Do("GET", txd))
-            err = json.Unmarshal([]byte(txoutjson), ctxo)
-            total += uint64(ctxo.Value)
-        }
+    addressh := new(AddressHash)
+    v, err := redis.Values(c.Do("HGETALL", fmt.Sprintf("addr:%v:h", address)))
+    if err != nil {
+        panic(err)
     }
-
+    if err := redis.ScanStruct(v, addressh); err != nil {
+        panic(err)
+    }
+    total = uint64(addressh.TotalReceived)
     return
 }
 
@@ -129,19 +118,15 @@ func GetSentByAddress(rpool *redis.Pool, address string) (total uint64, err erro
     c := rpool.Get()
     defer c.Close()
 
-    zkey := fmt.Sprintf("addr:%v", address)
-    cnt, _ := redis.Int(c.Do("ZCARD", zkey))
-    data, _ := redis.Strings(c.Do("ZREVRANGE", zkey, 0, cnt))
-
-    for _, txd := range data {
-        if strings.Contains(txd, "txi:") {
-            ctxi := new(TxIn)
-            txinjson, _ := redis.String(c.Do("GET", txd))
-            err = json.Unmarshal([]byte(txinjson), ctxi)
-            total += uint64(ctxi.PrevOut.Value)
-        }
+    addressh := new(AddressHash)
+    v, err := redis.Values(c.Do("HGETALL", fmt.Sprintf("addr:%v:h", address)))
+    if err != nil {
+        panic(err)
     }
-
+    if err := redis.ScanStruct(v, addressh); err != nil {
+        panic(err)
+    }
+    total = uint64(addressh.TotalSent)
     return
 }
 
@@ -149,24 +134,14 @@ func AddressBalance(rpool *redis.Pool, address string) (balance uint64, err erro
     c := rpool.Get()
     defer c.Close()
 
-    zkey := fmt.Sprintf("addr:%v", address)
-    cnt, _ := redis.Int(c.Do("ZCARD", zkey))
-    data, _ := redis.Strings(c.Do("ZREVRANGE", zkey, 0, cnt))
-
-    for _, txd := range data {
-        if strings.Contains(txd, "txo:") {
-            ctxo := new(TxOut)
-            txoutjson, _ := redis.String(c.Do("GET", txd))
-            err = json.Unmarshal([]byte(txoutjson), ctxo)
-            balance += uint64(ctxo.Value)
-        }
-        if strings.Contains(txd, "txi:") {
-            ctxi := new(TxIn)
-            txinjson, _ := redis.String(c.Do("GET", txd))
-            err = json.Unmarshal([]byte(txinjson), ctxi)
-            balance -= uint64(ctxi.PrevOut.Value)
-        }
+    addressh := new(AddressHash)
+    v, err := redis.Values(c.Do("HGETALL", fmt.Sprintf("addr:%v:h", address)))
+    if err != nil {
+        panic(err)
     }
-
+    if err := redis.ScanStruct(v, addressh); err != nil {
+        panic(err)
+    }
+    balance = uint64(addressh.TotalReceived - addressh.TotalSent)
     return
 }
