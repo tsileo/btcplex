@@ -13,6 +13,7 @@ type Config struct {
 	RedisHost          string `json:"redis_host"`
 	LevelDbPath        string `json:"leveldb_path"`
 	AppPort            uint   `json:"app_port"`
+	AppApiRateLimited  bool   `json:"app_api_rate_limited"`
 }
 
 // Load configuration from json file

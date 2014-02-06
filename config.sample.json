@@ -4,5 +4,6 @@
 	"redis_host": "localhost:6379",
 	"ssdb_host": "localhost:6381",
 	"leveldb_path": "/home/thomas/btcplex_leveldb",
-	"app_port": 6033
+	"app_port": 6033,
+	"app_api_rate_limited": true
 }
