@@ -65,3 +65,20 @@ func GetUnconfirmedTxs(pool *redis.Pool) (utxs []*Tx, err error) {
 	By(TxFirstSeenDesc).Sort(utxs)
 	return
 }
+
+// Return a set containing every addresses listed in txis/txos
+func (tx *Tx) Addresses() (addresses []string) {
+	addrset := make(map[string]struct{})
+	for _, txi := range tx.TxIns {
+		addrset[txi.PrevOut.Address] = struct{}{}
+	}
+	for _, txo := range tx.TxOuts {
+		addrset[txo.Addr] = struct{}{}
+	}
+
+	addresses = []string{}
+	for addr, _ := range addrset {
+		addresses = append(addresses, addr)
+	}
+	return
+}
