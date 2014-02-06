@@ -7,10 +7,10 @@ BTCplex is an open source [Bitcoin](http://bitcoin.org/) block chain browser wri
 
 Some features that are on my TODO list:
 
-- An easy way to monitor Bitcoin address via API (maybe using Webhooks
+- An easy way to monitor Bitcoin address via API (maybe using Webhooks)
 - Convert BTC to USD easily
 - An official Python and JS API wrapper
-- A Watch-only addresses page)
+- A Watch-only addresses page
 
 
 ## Architecture
@@ -35,7 +35,7 @@ Blocks, transactions, TxIns, TxOuts are stored in JSON format (SSDB support Redi
 
 #### Hashes
 
-BTCplex keeps one hashes per address (``addr:%v:h`` (address)) containing ReceivedCnt, SentCnt, TotalSent, TotalReceived. 
+BTCplex keeps one hashes per address (``addr:%v:h`` (address)) containing TotalSent, TotalReceived. 
 
 Hash keys for address data:
 
