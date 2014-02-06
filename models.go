@@ -39,8 +39,8 @@ type Tx struct {
 	BlockHash       string         `json:"block_hash"`
 	BlockHeight     uint           `json:"block_height"`
 	BlockTime       uint32         `json:"block_time"`
-	FirstSeenTime   uint32         `json:"-"`
-	FirstSeenHeight uint           `json:"-"`
+	FirstSeenTime   uint32         `json:"first_seen_time"`
+	FirstSeenHeight uint           `json:"first_seen_height"`
 	TxAddressInfo   *TxAddressInfo `json:"-"`
 }
 
