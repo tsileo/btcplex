@@ -158,13 +158,21 @@ func (tx *Tx) Build(rpool *redis.Pool) (err error) {
         tx.TxIns = append(tx.TxIns, ctxi)
     }
     txoutskeys := []interface{}{}
+    txoutsspentkeys := []interface{}{}
     for i := range iter.N(int(tx.TxOutCnt)) {
         txoutskeys = append(txoutskeys, fmt.Sprintf("txo:%v:%v", tx.Hash, i))
+        txoutsspentkeys = append(txoutsspentkeys, fmt.Sprintf("txo:%v:%v:spent", tx.Hash, i))
     }
     txoutsjson, _ := redis.Strings(c.Do("MGET", txoutskeys...))
-    for _, txoutjson := range txoutsjson {
+    txoutsspentjson, _ := redis.Strings(c.Do("MGET", txoutsspentkeys...))
+    for txoindex, txoutjson := range txoutsjson {
         ctxo := new(TxOut)
         err = json.Unmarshal([]byte(txoutjson), ctxo)
+        if txoutsspentjson[txoindex] != "" {
+            cspent := new(TxoSpent)
+            err = json.Unmarshal([]byte(txoutsspentjson[txoindex]), cspent)
+            ctxo.Spent = cspent
+        }
         tx.TxOuts = append(tx.TxOuts, ctxo)
     }
     return
@@ -178,6 +186,7 @@ func GetLastXBlocks(rpool *redis.Pool, start uint, stop uint) (blocks []*Block, 
     cur := int(start)
     blockskeys := []interface{}{}
     for _ = range iter.N(int(start - stop)) {
+    	// TODO(tsileo) MGET here to retrieve hashes
         chash, cerr := GetBlockHash(rpool, uint(cur))
         if cerr != nil {
             err = cerr
