@@ -3,7 +3,7 @@ package btcplex
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	_ "io/ioutil"
 	"log"
 	"net/http"
 	"strconv"
@@ -30,13 +30,16 @@ func CallBitcoinRPC(address string, method string, id interface{}, params []inte
 		return nil, err
 	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatalf("ReadAll: %v", err)
-		return nil, err
-	}
+	//body, err := ioutil.ReadAll(resp.Body)
+	//if err != nil {
+	//	log.Fatalf("ReadAll: %v", err)
+	//	return nil, err
+	//}
 	result := make(map[string]interface{})
-	err = json.Unmarshal(body, &result)
+	decoder := json.NewDecoder(resp.Body)
+	decoder.UseNumber()
+	err = decoder.Decode(&result)
+	//err = json.Unmarshal(body, &result)
 	if err != nil {
 		log.Fatalf("Unmarshal: %v", err)
 		return nil, err
@@ -60,26 +63,28 @@ func GetBlockRPC(conf *Config, block_height uint) (block *Block, txs []*Tx, err 
 	block = new(Block)
 	block.Hash = blockjson["hash"].(string)
 	block.Height = block_height
-	block.Version = uint32(blockjson["version"].(float64))
+	vertmp, _ := blockjson["version"].(json.Number).Int64()
+	block.Version = uint32(vertmp)
 	block.MerkleRoot = blockjson["merkleroot"].(string)
 	block.Parent = blockjson["previousblockhash"].(string)
-	block.Size = uint32(blockjson["size"].(float64))
-	block.Nonce = uint32(blockjson["nonce"].(float64))
-	block.BlockTime = uint32(blockjson["time"].(float64))
+	sizetmp, _ := blockjson["size"].(json.Number).Int64()
+	block.Size = uint32(sizetmp)
+	noncetmp, _ := blockjson["nonce"].(json.Number).Int64()
+	block.Nonce = uint32(noncetmp)
+	btimetmp, _ := blockjson["time"].(json.Number).Int64()
+	block.BlockTime = uint32(btimetmp)
 	blockbits, _ := strconv.ParseInt(blockjson["bits"].(string), 16, 0)
 	block.Bits = uint32(blockbits)
 	block.TxCnt = uint32(len(blockjson["tx"].([]interface{})))
 	fmt.Printf("Endblockrpc")
 	txs = []*Tx{}
-	tout := float64(0)
+	tout := uint64(0)
 	for _, txjson := range blockjson["tx"].([]interface{}) {
-		tx, itout, _ := GetTxRPC(conf, txjson.(string), block)
-		tout += itout
+		tx, _ := GetTxRPC(conf, txjson.(string), block)
+		tout += tx.TotalOut
 		txs = append(txs, tx)
 	}
-	totalstr := fmt.Sprintf("%.8f", tout)
-	totalbtc, _ := strconv.ParseFloat(totalstr, 0)
-	block.TotalBTC = uint64(totalbtc * 1e8)
+	block.TotalBTC = uint64(tout * 1e8)
 	return
 }
 
@@ -99,8 +104,10 @@ func GetRawTxRPC(conf *Config, tx_id string) (tx *Tx, err error) {
 
 	tx = new(Tx)
 	tx.Hash = tx_id
-	tx.Version = uint32(txjson["version"].(float64))
-	tx.LockTime = uint32(txjson["locktime"].(float64))
+	vertmp, _ := txjson["version"].(json.Number).Int64()
+	tx.Version = uint32(vertmp)
+	ltimetmp, _ := txjson["locktime"].(json.Number).Int64()
+	tx.LockTime = uint32(ltimetmp)
 	tx.Size = uint32(len(txjson["hex"].(string)) / 2)
 	//tx.
 
@@ -114,7 +121,8 @@ func GetRawTxRPC(conf *Config, tx_id string) (tx *Tx, err error) {
 
 			txinjsonprevout := new(PrevOut)
 			txinjsonprevout.Hash = txijson.(map[string]interface{})["txid"].(string)
-			txinjsonprevout.Vout = uint32(txijson.(map[string]interface{})["vout"].(float64))
+			vouttmp, _ := txijson.(map[string]interface{})["vout"].(json.Number).Int64()
+			txinjsonprevout.Vout = uint32(vouttmp)
 			txi.PrevOut = txinjsonprevout
 
 			tx.TxIns = append(tx.TxIns, txi)
@@ -122,7 +130,8 @@ func GetRawTxRPC(conf *Config, tx_id string) (tx *Tx, err error) {
 	}
 	for _, txojson := range txjson["vout"].([]interface{}) {
 		txo := new(TxOut)
-		txo.Value = uint64(txojson.(map[string]interface{})["value"].(float64) * 1e8)
+		valtmp, _ := txojson.(map[string]interface{})["value"].(json.Number).Float64()
+		txo.Value = uint64(valtmp * 1e8)
 		if txojson.(map[string]interface{})["scriptPubKey"].(map[string]interface{})["type"].(string) != "nonstandard" {
 			txo.Addr = txojson.(map[string]interface{})["scriptPubKey"].(map[string]interface{})["addresses"].([]interface{})[0].(string)
 		} else {
@@ -141,7 +150,7 @@ func GetRawTxRPC(conf *Config, tx_id string) (tx *Tx, err error) {
 }
 
 // Fetch a transaction via bticoind RPC API
-func GetTxRPC(conf *Config, tx_id string, block *Block) (tx *Tx, tout float64, err error) {
+func GetTxRPC(conf *Config, tx_id string, block *Block) (tx *Tx, err error) {
 	// Hard coded genesis tx since it's not included in bitcoind RPC API
 	if tx_id == GenesisTx {
 		return
@@ -159,13 +168,14 @@ func GetTxRPC(conf *Config, tx_id string, block *Block) (tx *Tx, tout float64, e
 	tx.BlockTime = block.BlockTime
 	tx.BlockHeight = block.Height
 	tx.BlockHash = block.Hash
-	tx.Version = uint32(txjson["version"].(float64))
-	tx.LockTime = uint32(txjson["locktime"].(float64))
+	vertmp, _ := txjson["version"].(json.Number).Int64()
+	tx.Version = uint32(vertmp)
+	ltimetmp, _ := txjson["locktime"].(json.Number).Int64()
+	tx.LockTime = uint32(ltimetmp)
 	tx.Size = uint32(len(txjson["hex"].(string)) / 2)
 
-	total_tx_out := uint(0)
-	total_tx_in := uint(0)
-	tout = float64(0)
+	total_tx_out := uint64(0)
+	total_tx_in := uint64(0)
 
 	for _, txijson := range txjson["vin"].([]interface{}) {
 		_, coinbase := txijson.(map[string]interface{})["coinbase"]
@@ -173,7 +183,8 @@ func GetTxRPC(conf *Config, tx_id string, block *Block) (tx *Tx, tout float64, e
 			txi := new(TxIn)
 			txinjsonprevout := new(PrevOut)
 			txinjsonprevout.Hash = txijson.(map[string]interface{})["txid"].(string)
-			txinjsonprevout.Vout = uint32(txijson.(map[string]interface{})["vout"].(float64))
+			tmpvout, _ := txijson.(map[string]interface{})["vout"].(json.Number).Int64()
+			txinjsonprevout.Vout = uint32(tmpvout)
 
 			prevtx, _ := GetRawTxRPC(conf, txinjsonprevout.Hash)
 			prevout := prevtx.TxOuts[txinjsonprevout.Vout]
@@ -181,7 +192,7 @@ func GetTxRPC(conf *Config, tx_id string, block *Block) (tx *Tx, tout float64, e
 			txinjsonprevout.Address = prevout.Addr
 			txinjsonprevout.Value = prevout.Value
 
-			total_tx_in += uint(txinjsonprevout.Value)
+			total_tx_in += uint64(txinjsonprevout.Value)
 
 			txi.PrevOut = txinjsonprevout
 
@@ -192,12 +203,11 @@ func GetTxRPC(conf *Config, tx_id string, block *Block) (tx *Tx, tout float64, e
 	}
 	for _, txojson := range txjson["vout"].([]interface{}) {
 		txo := new(TxOut)
-		txo.Value = uint64(txojson.(map[string]interface{})["value"].(float64) * 1e8)
+		txoval, _ := txojson.(map[string]interface{})["value"].(json.Number).Float64()
+		txo.Value = uint64(txoval * 1e8)
 		txo.Addr = txojson.(map[string]interface{})["scriptPubKey"].(map[string]interface{})["addresses"].([]interface{})[0].(string)
 		tx.TxOuts = append(tx.TxOuts, txo)
-
-		total_tx_out += uint(txo.Value)
-		tout += txojson.(map[string]interface{})["value"].(float64)
+		total_tx_out += uint64(txo.Value)
 	}
 
 	tx.TxOutCnt = uint32(len(tx.TxOuts))
