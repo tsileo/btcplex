@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-    "github.com/garyburd/redigo/redis"
 )
 
 const GenesisTx = "4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"
@@ -134,7 +133,12 @@ func GetRawTxRPC(conf *Config, tx_id string) (tx *Tx, err error) {
 		valtmp, _ := txojson.(map[string]interface{})["value"].(json.Number).Float64()
 		txo.Value = uint64(valtmp * 1e8)
 		if txojson.(map[string]interface{})["scriptPubKey"].(map[string]interface{})["type"].(string) != "nonstandard" {
-			txo.Addr = txojson.(map[string]interface{})["scriptPubKey"].(map[string]interface{})["addresses"].([]interface{})[0].(string)
+			txodata, txoisinterface := txojson.(map[string]interface{})["scriptPubKey"].(map[string]interface{})["addresses"].([]interface{})
+			if txoisinterface {
+				txo.Addr = txodata[0].(string)
+			} else {
+				txo.Addr = ""
+			}
 		} else {
 			txo.Addr = ""
 		}
@@ -236,47 +240,5 @@ func GetRawMemPoolVerboseRPC(conf *Config) (unconfirmedtxs map[string]interface{
 		return
 	}
 	unconfirmedtxs = res["result"].(map[string]interface{})
-	return
-}
-
-// Get unconfirmed transactions from memory pool, along with
-// first seem time/block height, requires a recent bitcoind version
-func GetUnconfirmedTxsRPC(conf *Config, pool *redis.Pool) (utxs []*Tx, err error) {    
-	c := pool.Get()
-	defer c.Close()
-	unconfirmedtxsverbose, _ := GetRawMemPoolVerboseRPC(conf)
-	unconfirmedtxs, _ := GetRawMemPoolRPC(conf)
-	utxs = []*Tx{}
-	for _, txid := range unconfirmedtxs {
-		utxexists, _ := redis.Bool(c.Do("SADD", "btcplex:rawmempool", txid))
-		if utxexists {
-			tx, _ := GetTxRPC(conf, txid, &Block{})
-			txmeta, txfound := unconfirmedtxsverbose[txid].(map[string]interface{})
-			if !txfound {
-				c.Do("SREM", "btcplex:rawmempool", txid)
-				log.Println("Not found in verbose rawmempool")
-			} else {
-				fseentime, _ := txmeta["time"].(json.Number).Int64()
-				tx.FirstSeenTime = uint32(fseentime)
-				fseenheight, _ := txmeta["height"].(json.Number).Int64()
-				tx.FirstSeenHeight = uint(fseenheight)
-				utxs = append(utxs, tx)
-				txjson, _ := json.Marshal(tx)
-				c.Do("SET", fmt.Sprintf("btcplex:utx:%v", txid), string(txjson))
-			}
-		} else {
-			txraw, _ := redis.String(c.Do("GET", fmt.Sprintf("btcplex:utx:%v", txid)))
-			utx := new(Tx)
-			if txraw != "" {
-				err = json.Unmarshal([]byte(txraw), utx)
-				if err != nil {
-					return
-				}
-				utxs = append(utxs, utx)
-			}
-		}
-		log.Println("Done")
-		
-	}
 	return
 }
