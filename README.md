@@ -11,9 +11,26 @@ Some features that are on my TODO list:
 - Convert BTC to USD easily
 - An official Python and JS API wrapper
 - A Watch-only addresses page
-
+- Live notification on a unconfirmed transaction page when it actually get included in a block 
 
 ## Architecture
+
+[Go](http://golang.org/) for the server-side ([Martini](http://martini.codegangsta.io/) for the webapp), [Redis](http://redis.io/) for temporary data, [SSDB](https://github.com/ideawu/ssdb) (Backed by [LevelDB](https://code.google.com/p/leveldb/)) for persistent data.
+
+The initial import is still slow, I've spent already spent a lot of time trying to improve it (1+ week on a small dual-core/6GB RAM server at block 247000), and the database takes around 69GB (at block 247000). I think the minimal requirement are 100+GB HD and 4+GB RAM.
+
+### Unconfirmed transactions
+
+Bitcoind memory pool is synced every 500ms in Redis, along with every transaction.
+
+The most recent memory pool sync is stored in a sorted set (with time as score), allowing them to be "replayed" via SSE on the unconfirmed transactions page.
+Each unconfirmed transaction is stored as JSON in a key ``btcplex:utx:%v`` (hash), the key is destroyed when it get removed from the memory pool.
+The sync is performed by keeping two sets: ``btcplex:rawmempool:%v`` (unix time):
+
+- one containing the previous state of memory pool (500ms ago)
+- the current state of memory pool
+
+The diff of the two sets is computed, and old unconfirmed transactions are removed. 
 
 
 ### Available keys
