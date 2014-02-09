@@ -93,15 +93,6 @@ func ProcessUnconfirmedTxs(conf *Config, pool *redis.Pool, running *bool) {
 	}
 }
 
-// Check if the Tx is in Redis (in rawmempool)
-func IsUnconfirmedTx(pool *redis.Pool, hash string) (status bool) {
-	c := pool.Get()
-	defer c.Close()
-	txkey := fmt.Sprintf("btcplex:utx:%v", hash)
-	status, _ = redis.Bool(c.Do("EXISTS", txkey))
-	return
-}
-
 // Fetch unconfirmed tx from Redis
 func GetUnconfirmedTx(pool *redis.Pool, hash string) (tx *Tx, err error) {
 	c := pool.Get()
