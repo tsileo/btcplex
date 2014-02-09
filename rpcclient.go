@@ -142,6 +142,10 @@ func GetRawTxRPC(conf *Config, tx_id string) (tx *Tx, err error) {
 		} else {
 			txo.Addr = ""
 		}
+		txospent := new(TxoSpent)
+		txospent.Spent = false
+		txo.Spent = txospent
+
 		tx.TxOuts = append(tx.TxOuts, txo)
 
 		total_tx_out += uint(txo.Value)
@@ -212,6 +216,9 @@ func GetTxRPC(conf *Config, tx_id string, block *Block) (tx *Tx, err error) {
 		txo.Value = uint64(txoval * 1e8)
 		txo.Addr = txojson.(map[string]interface{})["scriptPubKey"].(map[string]interface{})["addresses"].([]interface{})[0].(string)
 		tx.TxOuts = append(tx.TxOuts, txo)
+		txospent := new(TxoSpent)
+		txospent.Spent = false
+		txo.Spent = txospent
 		total_tx_out += uint64(txo.Value)
 	}
 
