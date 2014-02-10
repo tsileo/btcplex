@@ -82,7 +82,13 @@ func ProcessUnconfirmedTxs(conf *Config, pool *redis.Pool, running *bool) {
         	newkeys, _ := redis.Strings(c.Do("ZRANGEBYSCORE", "btcplex:rawmempool", lastts, cts))
         	for _, newkey := range newkeys {
         		txjson, _ := redis.String(c.Do("GET", newkey))
+        		// Notify SSE unconfirmed transactions
         		c.Do("PUBLISH", "btcplex:utxs", txjson)
+        		ctx := new(Tx)
+        		json.Unmarshal([]byte(txjson), ctx)
+        		// Notify transaction to every channel address
+        		multiPublishScript.Do(c, redis.Args{}.Add(txjson).AddFlat(ctx.AddressesChannels()))
+        		c.Do("SADD", "btcplex:utxs:published", ctx.Hash)
         	}
         } else {
         	log.Println("ProcessUnconfirmedTxs first round done")

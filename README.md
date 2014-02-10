@@ -67,7 +67,7 @@ BTCplex keeps three sorted set per address (``addr:%v`` (address), ``addr:%v:rec
 
 It also store one sorted for each block containing transaction references sorted by index (``block:%v:txs`` (hash)).
 
-Bitcoind memory pool is sync in a sorted set: ``btcplex:rawmempool``.
+Bitcoind memory pool is "synced" in a sorted set: ``btcplex:rawmempool``.
 
 
 ### Webapp
