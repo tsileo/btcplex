@@ -87,8 +87,9 @@ func ProcessUnconfirmedTxs(conf *Config, pool *redis.Pool, running *bool) {
         		ctx := new(Tx)
         		json.Unmarshal([]byte(txjson), ctx)
         		// Notify transaction to every channel address
-        		multiPublishScript.Do(c, redis.Args{}.Add(txjson).AddFlat(ctx.AddressesChannels()))
-        		c.Do("SADD", "btcplex:utxs:published", ctx.Hash)
+        		multiPublishScript.Do(c, redis.Args{}.Add(txjson).AddFlat(ctx.AddressesChannels())...)
+        		c.Do("SETEX", fmt.Sprintf("btcplex:utx:%v:published", ctx.Hash), 3600*20, cts)
+        		//c.Do("SADD", "btcplex:utxs:published", ctx.Hash)
         	}
         } else {
         	log.Println("ProcessUnconfirmedTxs first round done")
