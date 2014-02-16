@@ -2,6 +2,13 @@
 
 BTCplex is an open source [Bitcoin](http://bitcoin.org/) block chain browser written in [Go](http://golang.org/), it allows you to search and navigate the [block chain](https://en.bitcoin.it/wiki/Block_chain).
 
+## Requirements
+
+- A [bitcoind](https://github.com/bitcoin/bitcoin/) instance (you can [build bitcoind in Disable-wallet mode](https://github.com/bitcoin/bitcoin/blob/master/doc/build-unix.md#disable-wallet-mode))
+- Go >=1.1
+- Redis
+- SSDB
+- 150+GB disk space / 4GB RAM
 
 ## Roadmap
 
@@ -32,6 +39,9 @@ The sync is performed by keeping two sets: ``btcplex:rawmempool:%v`` (unix time)
 
 The diff of the two sets is computed, and old unconfirmed transactions are removed. 
 
+### New block
+
+BTCplex relies on ``bitcoind`` blocknotify callback, each time the best block changes, it will be processed and immediately available. 
 
 ### Available keys
 
