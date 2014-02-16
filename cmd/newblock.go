@@ -1,5 +1,7 @@
-// Command executed by bitcoind when a new block is found
+// Command executed by bitcoind when a new block is found,
+// publish the hash over a Redis PubSub channel.
 package main
+
 import (
 	"github.com/docopt/docopt.go"
     "os"
