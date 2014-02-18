@@ -22,6 +22,7 @@ type Block struct {
 	//    BlockReward float64 `json:"-"`
 	Parent string `json:"prev_block"`
 	Next   string `json:"next_block"`
+    Links     map[string]map[string]string `json:"_links,omitempty"`
 }
 
 type Tx struct {
@@ -42,6 +43,7 @@ type Tx struct {
 	FirstSeenTime   uint32         `json:"first_seen_time"`
 	FirstSeenHeight uint           `json:"first_seen_height"`
 	TxAddressInfo   *TxAddressInfo `json:"-"`
+    Links     map[string]map[string]string `json:"_links,omitempty"`
 }
 
 type TxAddressInfo struct {

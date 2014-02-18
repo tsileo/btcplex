@@ -15,6 +15,7 @@ type AddressData struct {
 	TotalSent     uint64 `json:"total_sent"`
 	FinalBalance  uint64 `json:"final_balance"`
 	Txs           []*Tx  `json:"txs"`
+    Links     map[string]map[string]string `json:"_links,omitempty"`
 }
 
 type AddressHash struct {
