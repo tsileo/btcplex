@@ -61,11 +61,11 @@ func GetAddress(rpool *redis.Pool, address string) (addressdata *AddressData, er
     return
 }
 
-func (addrData *AddressData) FetchTxs(rpool *redis.Pool, start, stop int) (txs []*Tx, err error) {
+func (addrData *AddressData) FetchTxs(rpool *redis.Pool, start, stop int) (err error) {
     c := rpool.Get()
     defer c.Close()
 
-    txs = []*Tx{}
+    txs := []*Tx{}
 
     zkey := fmt.Sprintf("addr:%v", addrData.Address)
 
@@ -101,6 +101,7 @@ func (addrData *AddressData) FetchTxs(rpool *redis.Pool, start, stop int) (txs [
         ctx.TxAddressInfo = txaddressinfo
         txs = append(txs, ctx)
     }
+    addrData.Txs = txs
     return
 }
 
