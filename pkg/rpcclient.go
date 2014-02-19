@@ -124,17 +124,21 @@ func SaveBlockFromRPC(conf *Config, pool *redis.Pool, block_height uint) (block 
 	block.Bits = uint32(blockbits)
 	block.TxCnt = uint32(len(blockjson["tx"].([]interface{})))
 	tout := uint64(0)
+	txs := []*Tx{}
+	var txmut sync.Mutex
 	for txindex, txjson := range blockjson["tx"].([]interface{}) {
 		sem <-true
 		wg.Add(1)
-		go func(txjson interface{}, tout *uint64, block *Block) {
+		go func(txjson interface{}, tout *uint64, block *Block, txs *[]*Tx) {
 			defer wg.Done()
 			defer func() { <-sem }()
 			tx, _ := SaveTxFromRPC(conf, pool, txjson.(string), block, txindex)
 			//(conf *Config, pool *redis.Pool, tx_id string, block *Block, tx_index int) 
 			atomic.AddUint64(tout, tx.TotalOut)
-
-		}(txjson, &tout, block)
+			txmut.Lock()
+			*txs = append(*txs, tx)
+			txmut.Unlock()
+		}(txjson, &tout, block, &txs)
 	}
 	wg.Wait()
 	block.TotalBTC = uint64(tout)
@@ -144,6 +148,7 @@ func SaveBlockFromRPC(conf *Config, pool *redis.Pool, block_height uint) (block 
 	blockjson2, _ := json.Marshal(block)
     c.Do("ZADD", "blocks", block.BlockTime, block.Hash)
     c.Do("MSET", fmt.Sprintf("block:%v", block.Hash), blockjson2, "height:latest", int(block.Height), fmt.Sprintf("block:height:%v", block.Height), block.Hash)
+	block.Txs = txs
 	return
 }
 
@@ -214,6 +219,40 @@ func GetRawTxRPC(conf *Config, tx_id string) (tx *Tx, err error) {
 	tx.TxInCnt = uint32(len(tx.TxIns))
 	tx.TotalOut = uint64(total_tx_out)
 	tx.TotalIn = uint64(total_tx_in)
+	return
+}
+
+// Fetch a transaction without additional info, used to fetch previous txouts when parsing txins
+func GetTxOutRPC(conf *Config, tx_id string, txo_vout uint32) (txo *TxOut, err error) {
+	// Hard coded genesis tx since it's not included in bitcoind RPC API
+	if tx_id == GenesisTx {
+		return
+		//return TxData{GenesisTx, []TxIn{}, []TxOut{{"1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa", 5000000000}}}, nil
+	}
+	// Get the TX from bitcoind RPC API
+	res_tx, err := CallBitcoinRPC(conf.BitcoindRpcUrl, "getrawtransaction", 1, []interface{}{tx_id, 1})
+	if err != nil {
+		log.Fatalf("Err: %v", err)
+	}
+	txjson := res_tx["result"].(map[string]interface{})
+
+	txojson := txjson["vout"].([]interface{})[txo_vout]
+	txo = new(TxOut)
+	valtmp, _ := txojson.(map[string]interface{})["value"].(json.Number).Float64()
+	txo.Value = uint64(valtmp * 1e8)
+	if txojson.(map[string]interface{})["scriptPubKey"].(map[string]interface{})["type"].(string) != "nonstandard" {
+		txodata, txoisinterface := txojson.(map[string]interface{})["scriptPubKey"].(map[string]interface{})["addresses"].([]interface{})
+		if txoisinterface {
+			txo.Addr = txodata[0].(string)
+		} else {
+			txo.Addr = ""
+		}
+	} else {
+		txo.Addr = ""
+	}
+	txospent := new(TxoSpent)
+	txospent.Spent = false
+	txo.Spent = txospent
 	return
 }
 
@@ -294,6 +333,7 @@ func SaveTxFromRPC(conf *Config, pool *redis.Pool, tx_id string, block *Block, t
 	c := pool.Get()
 	defer c.Close()
 	var wg sync.WaitGroup
+	var mut sync.Mutex
 	// Hard coded genesis tx since it's not included in bitcoind RPC API
 	if tx_id == GenesisTx {
 		return
@@ -318,17 +358,15 @@ func SaveTxFromRPC(conf *Config, pool *redis.Pool, tx_id string, block *Block, t
 	tx.Size = uint32(len(txjson["hex"].(string)) / 2)
 
 	total_tx_out := uint64(0)
-	cnt_tx_out := uint64(0)
-	total_tx_in := uint64(0)	
-	cnt_tx_in := uint64(0)
+	total_tx_in := uint64(0)
 
-	sem := make(chan bool, 25)
+	sem := make(chan bool, 50)
 	for txiindex, txijson := range txjson["vin"].([]interface{}) {
 		_, coinbase := txijson.(map[string]interface{})["coinbase"]
 		if !coinbase {
 			wg.Add(1)
 			sem <-true
-			go func(pool *redis.Pool, txiindex int, cnt_tx_in *uint64, total_tx_in *uint64) {
+			go func(pool *redis.Pool, txiindex int, total_tx_in *uint64, tx *Tx) {
 				defer wg.Done()
 				defer func() { <-sem }()
 				c := pool.Get()
@@ -339,8 +377,7 @@ func SaveTxFromRPC(conf *Config, pool *redis.Pool, tx_id string, block *Block, t
 				tmpvout, _ := txijson.(map[string]interface{})["vout"].(json.Number).Int64()
 				txinjsonprevout.Vout = uint32(tmpvout)
 
-				prevtx, _ := GetRawTxRPC(conf, txinjsonprevout.Hash)
-				prevout := prevtx.TxOuts[txinjsonprevout.Vout]
+				prevout, _ := GetTxOutRPC(conf, txinjsonprevout.Hash, txinjsonprevout.Vout)
 
 				txinjsonprevout.Address = prevout.Addr
 				txinjsonprevout.Value = prevout.Value
@@ -348,10 +385,10 @@ func SaveTxFromRPC(conf *Config, pool *redis.Pool, tx_id string, block *Block, t
 				atomic.AddUint64(total_tx_in, uint64(txinjsonprevout.Value))
 
 				txi.PrevOut = txinjsonprevout
-				atomic.AddUint64(cnt_tx_in, 1)
+				
+				mut.Lock()
 				tx.TxIns = append(tx.TxIns, txi)
-				// TODO set spent
-				// TODO save to SSDB
+				mut.Unlock()
 
                 txospent := new(TxoSpent)
                 txospent.Spent = true
@@ -359,7 +396,6 @@ func SaveTxFromRPC(conf *Config, pool *redis.Pool, tx_id string, block *Block, t
                 txospent.InputHash = tx.Hash
                 txospent.InputIndex = uint32(txiindex)
 
-                //log.Println("Starting update prev txo")
                 ntxijson, _ := json.Marshal(txi)
                 ntxikey := fmt.Sprintf("txi:%v:%v", tx.Hash, txiindex)
 
@@ -374,7 +410,7 @@ func SaveTxFromRPC(conf *Config, pool *redis.Pool, tx_id string, block *Block, t
                 c.Do("ZADD", fmt.Sprintf("addr:%v:sent", txinjsonprevout.Address), block.BlockTime, tx.Hash)
                 c.Do("HINCRBY", fmt.Sprintf("addr:%v:h", txinjsonprevout.Address), "ts", txinjsonprevout.Value)
 
-			}(pool, txiindex, &cnt_tx_in, &total_tx_in)
+			}(pool, txiindex, &total_tx_in, tx)
 		}
 	}
 	wg.Wait()
@@ -382,9 +418,20 @@ func SaveTxFromRPC(conf *Config, pool *redis.Pool, tx_id string, block *Block, t
 		txo := new(TxOut)
 		txoval, _ := txojson.(map[string]interface{})["value"].(json.Number).Float64()
 		txo.Value = uint64(txoval * 1e8)
-		txo.Addr = txojson.(map[string]interface{})["scriptPubKey"].(map[string]interface{})["addresses"].([]interface{})[0].(string)
-		//tx.TxOuts = append(tx.TxOuts, txo)
-		cnt_tx_out += uint64(1)
+		//txo.Addr = txojson.(map[string]interface{})["scriptPubKey"].(map[string]interface{})["addresses"].([]interface{})[0].(string)
+		
+		if txojson.(map[string]interface{})["scriptPubKey"].(map[string]interface{})["type"].(string) != "nonstandard" {
+			txodata, txoisinterface := txojson.(map[string]interface{})["scriptPubKey"].(map[string]interface{})["addresses"].([]interface{})
+			if txoisinterface {
+				txo.Addr = txodata[0].(string)
+			} else {
+				txo.Addr = ""
+			}
+		} else {
+			txo.Addr = ""
+		}
+
+		tx.TxOuts = append(tx.TxOuts, txo)
 		txospent := new(TxoSpent)
 		txospent.Spent = false
 		txo.Spent = txospent
@@ -400,8 +447,8 @@ func SaveTxFromRPC(conf *Config, pool *redis.Pool, tx_id string, block *Block, t
 
 	}
 
-	tx.TxOutCnt = uint32(cnt_tx_out)
-	tx.TxInCnt = uint32(cnt_tx_in)
+	tx.TxOutCnt = uint32(len(tx.TxOuts))
+	tx.TxInCnt = uint32(len(tx.TxIns))
 	tx.TotalOut = uint64(total_tx_out)
 	tx.TotalIn = uint64(total_tx_in)
 
