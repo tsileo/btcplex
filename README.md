@@ -93,6 +93,26 @@ I tried a lot of databases ([LevelDB](https://code.google.com/p/leveldb/), [Reth
 - [SSDB](https://github.com/ideawu/ssdb) or Redis
 - [LevelDB](https://code.google.com/p/leveldb/)
 
+### Custom bitcoind
+
+/home/thomas/bitcoindtest/bitcoin/src/rpcrawtransaction.cpp:
+
+	in.push_back(Pair("txid", txin.prevout.hash.GetHex()));
+    in.push_back(Pair("vout", (boost::int64_t)txin.prevout.n));
+    //Modif
+    CTransaction txPrev;
+    uint256 hashBlock;
+    GetTransaction(txin.prevout.hash, txPrev, hashBlock);  // get the vin's previous transaction 
+    CTxDestination source;
+    if (ExtractDestination(txPrev.vout[txin.prevout.n].scriptPubKey, source))  // extract the destination of the previous transaction's vout[n]
+    {
+        CBitcoinAddress addressSource(source);              // convert this to an address
+        in.push_back(Pair("address", addressSource.ToString())); // add the address to the returned object
+        in.push_back(Pair("value", ValueFromAmount(txPrev.vout[txin.prevout.n].nValue))); 
+    }
+    //End
+    Object o;
+
 
 ## Donation
 
