@@ -95,7 +95,7 @@ func SaveBlockFromRPC(conf *Config, pool *redis.Pool, block_height uint) (block 
 	c := pool.Get()
 	defer c.Close()
 	var wg sync.WaitGroup
-	sem := make(chan bool, 50)
+	sem := make(chan bool, 25)
 	// Get the block hash
 	res, err := CallBitcoinRPC(conf.BitcoindRpcUrl, "getblockhash", 1, []interface{}{block_height})
 	if err != nil {
@@ -150,6 +150,35 @@ func SaveBlockFromRPC(conf *Config, pool *redis.Pool, block_height uint) (block 
     c.Do("ZADD", "blocks", block.BlockTime, block.Hash)
     c.Do("MSET", fmt.Sprintf("block:%v", block.Hash), blockjson2, "height:latest", int(block.Height), fmt.Sprintf("block:height:%v", block.Height), block.Hash)
 	block.Txs = txs
+	fullblockjson, _ := json.Marshal(block)
+	c.Do("SET", fmt.Sprintf("block:%v:cached", block.Hash), fullblockjson)
+	
+	prevheight := block.Height - 1
+	prevhashtest := block.Parent
+    prevnext := block.Hash
+    for {
+        prevkey := fmt.Sprintf("height:%v", prevheight)
+        prevcnt, _ := redis.Int(c.Do("ZCARD", prevkey))
+        // SSDB doesn't support negative slice yet
+        prevs, _ := redis.Strings(c.Do("ZRANGE", prevkey, 0, prevcnt - 1))
+            for _, cprevhash := range prevs {
+                if cprevhash == prevhashtest {
+                    // current block parent
+                    prevhashtest, _ = redis.String(c.Do("HGET", fmt.Sprintf("block:%v:h", cprevhash), "parent"))
+                    // Set main to 1 and the next => prevnext
+                    c.Do("HMSET", fmt.Sprintf("block:%v:h", cprevhash), "main", true, "next", prevnext)
+                    c.Do("SET", fmt.Sprintf("block:height:%v", prevheight), cprevhash)
+                    prevnext = cprevhash
+                } else {
+                    // Set main to 0
+                    c.Do("HSET", fmt.Sprintf("block:%v:h", cprevhash), "main", false)
+                }
+            }
+            if len(prevs) == 1 {
+                break
+            }
+            prevheight--    
+    }
 	return
 }
 
@@ -256,7 +285,7 @@ func GetTxOutRPC(conf *Config, tx_id string, txo_vout uint32) (txo *TxOut, err e
 	txojson := txjson["vout"].([]interface{})[txo_vout]
 	txo = new(TxOut)
 	valtmp, _ := txojson.(map[string]interface{})["value"].(json.Number).Float64()
-	txo.Value = uint64(valtmp * 1e8)
+	txo.Value = FloatToUint(valtmp)
 	if txojson.(map[string]interface{})["scriptPubKey"].(map[string]interface{})["type"].(string) != "nonstandard" {
 		txodata, txoisinterface := txojson.(map[string]interface{})["scriptPubKey"].(map[string]interface{})["addresses"].([]interface{})
 		if txoisinterface {
@@ -350,7 +379,7 @@ func SaveTxFromRPC(conf *Config, pool *redis.Pool, tx_id string, block *Block, t
 	c := pool.Get()
 	defer c.Close()
 	var wg sync.WaitGroup
-	var mut sync.Mutex
+	var tximut, txomut sync.Mutex
 	// Hard coded genesis tx since it's not included in bitcoind RPC API
 	if tx_id == GenesisTx {
 		return
@@ -394,23 +423,26 @@ func SaveTxFromRPC(conf *Config, pool *redis.Pool, tx_id string, block *Block, t
 				tmpvout, _ := txijson.(map[string]interface{})["vout"].(json.Number).Int64()
 				txinjsonprevout.Vout = uint32(tmpvout)
 
-				//prevout, _ := GetTxOutRPC(conf, txinjsonprevout.Hash, txinjsonprevout.Vout)
+				// Check if bitcoind is patched to fetch value/address without additional RPC call
+				// cf. README
+				_, bitcoindPatched := txijson.(map[string]interface{})["value"]
+				if bitcoindPatched {
+					pval, _ := txijson.(map[string]interface{})["value"].(json.Number).Float64()
+					txinjsonprevout.Address = txijson.(map[string]interface{})["address"].(string)
+					txinjsonprevout.Value = FloatToUint(pval)
+				} else {
+					prevout, _ := GetTxOutRPC(conf, txinjsonprevout.Hash, txinjsonprevout.Vout)
 
-				//txinjsonprevout.Address = prevout.Addr
-				//txinjsonprevout.Value = prevout.Value
-
-				// Based on bitcoind patched version
-				pval, _ := txijson.(map[string]interface{})["value"].(json.Number).Float64()
-				txinjsonprevout.Address = txijson.(map[string]interface{})["address"].(string)
-				txinjsonprevout.Value = uint64(pval * 1e8)
-
+					txinjsonprevout.Address = prevout.Addr
+					txinjsonprevout.Value = prevout.Value
+				}
 				atomic.AddUint64(total_tx_in, uint64(txinjsonprevout.Value))
 
 				txi.PrevOut = txinjsonprevout
 				
-				mut.Lock()
+				tximut.Lock()
 				tx.TxIns = append(tx.TxIns, txi)
-				mut.Unlock()
+				tximut.Unlock()
 
                 txospent := new(TxoSpent)
                 txospent.Spent = true
@@ -435,7 +467,6 @@ func SaveTxFromRPC(conf *Config, pool *redis.Pool, tx_id string, block *Block, t
 			}(pool, txijson, txiindex, &total_tx_in, tx, block)
 		}
 	}
-	wg.Wait()
 	for txo_index, txojson := range txjson["vout"].([]interface{}) {
 		wg.Add(1)
 		sem <-true
@@ -446,7 +477,7 @@ func SaveTxFromRPC(conf *Config, pool *redis.Pool, tx_id string, block *Block, t
 			defer c.Close()
 			txo := new(TxOut)
 			txoval, _ := txojson.(map[string]interface{})["value"].(json.Number).Float64()
-			txo.Value = uint64(txoval * 1e8)
+			txo.Value = FloatToUint(txoval)
 			//txo.Addr = txojson.(map[string]interface{})["scriptPubKey"].(map[string]interface{})["addresses"].([]interface{})[0].(string)
 			
 			if txojson.(map[string]interface{})["scriptPubKey"].(map[string]interface{})["type"].(string) != "nonstandard" {
@@ -460,9 +491,9 @@ func SaveTxFromRPC(conf *Config, pool *redis.Pool, tx_id string, block *Block, t
 				txo.Addr = ""
 			}
 
-			mut.Lock()
+			txomut.Lock()
 			tx.TxOuts = append(tx.TxOuts, txo)
-			mut.Unlock()
+			txomut.Unlock()
 			txospent := new(TxoSpent)
 			txospent.Spent = false
 			txo.Spent = txospent

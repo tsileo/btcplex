@@ -34,3 +34,9 @@ func GetRange(db *levigo.DB, kStart []byte, kEnd []byte) (values []*KeyValue, er
 
 	return
 }
+
+func FloatToUint(x float64) uint64 {
+	//frep := strconv.FormatFloat(x, 'g', prec, 64)
+	//f, _ := strconv.ParseFloat(fmt.Sprintf("%.8f", x), 64)	
+	return uint64(int64((x * float64(100000000.0)) + float64(0.5)))
+}
