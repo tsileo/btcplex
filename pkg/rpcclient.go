@@ -95,7 +95,7 @@ func SaveBlockFromRPC(conf *Config, pool *redis.Pool, block_height uint) (block 
 	c := pool.Get()
 	defer c.Close()
 	var wg sync.WaitGroup
-	sem := make(chan bool, 25)
+	sem := make(chan bool, 50)
 	// Get the block hash
 	res, err := CallBitcoinRPC(conf.BitcoindRpcUrl, "getblockhash", 1, []interface{}{block_height})
 	if err != nil {
@@ -138,6 +138,7 @@ func SaveBlockFromRPC(conf *Config, pool *redis.Pool, block_height uint) (block 
 			txmut.Lock()
 			*txs = append(*txs, tx)
 			txmut.Unlock()
+			fmt.Printf("TX done")
 		}(txjson, &tout, block, &txs)
 	}
 	wg.Wait()
@@ -221,6 +222,22 @@ func GetRawTxRPC(conf *Config, tx_id string) (tx *Tx, err error) {
 	tx.TotalIn = uint64(total_tx_in)
 	return
 }
+
+// Fetch a transaction without additional info, used to fetch previous txouts when parsing txins
+func GetTxOutRPC2(conf *Config, pool *redis.Pool, tx_id string, txo_vout uint32) (txo *TxOut, err error) {
+	// TODO REMOVE THIS and use pool
+	pool2, _ := GetSSDB(conf)
+	c := pool2.Get()
+	defer c.Close()
+	prevtxoredisjson, err := redis.String(c.Do("GET", fmt.Sprintf("txo:%v:%v", tx_id, txo_vout)))
+    if err != nil {
+        panic(err)
+    }
+    txo = new(TxOut)
+    json.Unmarshal([]byte(prevtxoredisjson), txo)
+	return
+}
+
 
 // Fetch a transaction without additional info, used to fetch previous txouts when parsing txins
 func GetTxOutRPC(conf *Config, tx_id string, txo_vout uint32) (txo *TxOut, err error) {
@@ -366,7 +383,7 @@ func SaveTxFromRPC(conf *Config, pool *redis.Pool, tx_id string, block *Block, t
 		if !coinbase {
 			wg.Add(1)
 			sem <-true
-			go func(pool *redis.Pool, txiindex int, total_tx_in *uint64, tx *Tx) {
+			go func(pool *redis.Pool, txijson interface{}, txiindex int, total_tx_in *uint64, tx *Tx, block *Block) {
 				defer wg.Done()
 				defer func() { <-sem }()
 				c := pool.Get()
@@ -377,10 +394,15 @@ func SaveTxFromRPC(conf *Config, pool *redis.Pool, tx_id string, block *Block, t
 				tmpvout, _ := txijson.(map[string]interface{})["vout"].(json.Number).Int64()
 				txinjsonprevout.Vout = uint32(tmpvout)
 
-				prevout, _ := GetTxOutRPC(conf, txinjsonprevout.Hash, txinjsonprevout.Vout)
+				//prevout, _ := GetTxOutRPC(conf, txinjsonprevout.Hash, txinjsonprevout.Vout)
 
-				txinjsonprevout.Address = prevout.Addr
-				txinjsonprevout.Value = prevout.Value
+				//txinjsonprevout.Address = prevout.Addr
+				//txinjsonprevout.Value = prevout.Value
+
+				// Based on bitcoind patched version
+				pval, _ := txijson.(map[string]interface{})["value"].(json.Number).Float64()
+				txinjsonprevout.Address = txijson.(map[string]interface{})["address"].(string)
+				txinjsonprevout.Value = uint64(pval * 1e8)
 
 				atomic.AddUint64(total_tx_in, uint64(txinjsonprevout.Value))
 
@@ -410,42 +432,55 @@ func SaveTxFromRPC(conf *Config, pool *redis.Pool, tx_id string, block *Block, t
                 c.Do("ZADD", fmt.Sprintf("addr:%v:sent", txinjsonprevout.Address), block.BlockTime, tx.Hash)
                 c.Do("HINCRBY", fmt.Sprintf("addr:%v:h", txinjsonprevout.Address), "ts", txinjsonprevout.Value)
 
-			}(pool, txiindex, &total_tx_in, tx)
+			}(pool, txijson, txiindex, &total_tx_in, tx, block)
 		}
 	}
 	wg.Wait()
 	for txo_index, txojson := range txjson["vout"].([]interface{}) {
-		txo := new(TxOut)
-		txoval, _ := txojson.(map[string]interface{})["value"].(json.Number).Float64()
-		txo.Value = uint64(txoval * 1e8)
-		//txo.Addr = txojson.(map[string]interface{})["scriptPubKey"].(map[string]interface{})["addresses"].([]interface{})[0].(string)
-		
-		if txojson.(map[string]interface{})["scriptPubKey"].(map[string]interface{})["type"].(string) != "nonstandard" {
-			txodata, txoisinterface := txojson.(map[string]interface{})["scriptPubKey"].(map[string]interface{})["addresses"].([]interface{})
-			if txoisinterface {
-				txo.Addr = txodata[0].(string)
+		wg.Add(1)
+		sem <-true
+		go func(pool *redis.Pool, txojson interface{}, txo_index int, total_tx_out *uint64, tx *Tx, block *Block) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			c := pool.Get()
+			defer c.Close()
+			txo := new(TxOut)
+			txoval, _ := txojson.(map[string]interface{})["value"].(json.Number).Float64()
+			txo.Value = uint64(txoval * 1e8)
+			//txo.Addr = txojson.(map[string]interface{})["scriptPubKey"].(map[string]interface{})["addresses"].([]interface{})[0].(string)
+			
+			if txojson.(map[string]interface{})["scriptPubKey"].(map[string]interface{})["type"].(string) != "nonstandard" {
+				txodata, txoisinterface := txojson.(map[string]interface{})["scriptPubKey"].(map[string]interface{})["addresses"].([]interface{})
+				if txoisinterface {
+					txo.Addr = txodata[0].(string)
+				} else {
+					txo.Addr = ""
+				}
 			} else {
 				txo.Addr = ""
 			}
-		} else {
-			txo.Addr = ""
-		}
 
-		tx.TxOuts = append(tx.TxOuts, txo)
-		txospent := new(TxoSpent)
-		txospent.Spent = false
-		txo.Spent = txospent
-		total_tx_out += uint64(txo.Value)
+			mut.Lock()
+			tx.TxOuts = append(tx.TxOuts, txo)
+			mut.Unlock()
+			txospent := new(TxoSpent)
+			txospent.Spent = false
+			txo.Spent = txospent
+			//total_tx_out += uint64(txo.Value)
+			atomic.AddUint64(total_tx_out, uint64(txo.Value))
 
-        ntxojson, _ := json.Marshal(txo)
-        ntxokey := fmt.Sprintf("txo:%v:%v", tx.Hash, txo_index)
-        c.Do("SET", ntxokey, ntxojson)
-        //conn.Send("ZADD", fmt.Sprintf("txo:%v", tx.Hash), txo_index, ntxokey)
-        c.Do("ZADD", fmt.Sprintf("addr:%v", txo.Addr), block.BlockTime, tx.Hash)
-        c.Do("ZADD", fmt.Sprintf("addr:%v:received", txo.Addr), block.BlockTime, tx.Hash)
-        c.Do("HINCRBY", fmt.Sprintf("addr:%v:h", txo.Addr), "tr", txo.Value)
+	        ntxojson, _ := json.Marshal(txo)
+	        ntxokey := fmt.Sprintf("txo:%v:%v", tx.Hash, txo_index)
+	        c.Do("SET", ntxokey, ntxojson)
+	        //conn.Send("ZADD", fmt.Sprintf("txo:%v", tx.Hash), txo_index, ntxokey)
+	        c.Do("ZADD", fmt.Sprintf("addr:%v", txo.Addr), block.BlockTime, tx.Hash)
+	        c.Do("ZADD", fmt.Sprintf("addr:%v:received", txo.Addr), block.BlockTime, tx.Hash)
+	        c.Do("HINCRBY", fmt.Sprintf("addr:%v:h", txo.Addr), "tr", txo.Value)
+	    }(pool, txojson, txo_index, &total_tx_out, tx, block)
 
 	}
+
+	wg.Wait()
 
 	tx.TxOutCnt = uint32(len(tx.TxOuts))
 	tx.TxInCnt = uint32(len(tx.TxIns))
