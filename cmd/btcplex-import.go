@@ -13,12 +13,14 @@ import (
     "github.com/pmylund/go-cache"
     "github.com/jmhodges/levigo"
     "runtime"
+    _ "github.com/paulbellamy/ratecounter"
+    _ "github.com/tsileo/btcplex/pkg"
 )
 
 type Block struct {
     Hash        string  `json:"hash"`
     Height      uint    `json:"height"`
-//    Txs         []*Tx   `json:"tx,omitempty" bson:"-"`
+    Txs         []*Tx   `json:"tx,omitempty" bson:"-"`
     Version     uint32  `json:"ver"`
     MerkleRoot  string  `json:"mrkl_root"`
     BlockTime   uint32  `json:"time"`
@@ -88,7 +90,9 @@ type TxoSpent struct {
     InputIndex  uint32 `json:"in_index"`
 }
 
-var wg, txowg, txiwg sync.WaitGroup
+var wg, txwg sync.WaitGroup
+var tximut, txomut sync.Mutex
+
 var running bool
 
 func getGOMAXPROCS() int {
@@ -101,7 +105,7 @@ func main () {
     opts.SetCreateIfMissing(true)
     filter := levigo.NewBloomFilter(10)
     opts.SetFilterPolicy(filter)
-    ldb, err := levigo.Open("/home/thomas/btcplex_txocached100c", opts) //alpha
+    ldb, err := levigo.Open("/home/thomas/btcplex_txocached", opts) //alpha
 
     defer ldb.Close()
 
@@ -166,7 +170,7 @@ func main () {
     log.Println("DB Loaded")
 
 
-    concurrency := 50
+    concurrency := 250
     sem := make(chan bool, concurrency)
     //concurrency := 50
     //sem := make(chan bool, concurrency)
@@ -291,21 +295,22 @@ func main () {
             total_tx_in := uint64(0)
 
             //conn.Send("MULTI")
-            //txos := []*TxOut{}
-            txos_cnt := uint32(0)
+            txos := []*TxOut{}
+            txis := []*TxIn{}
+
             for txo_index, txo := range tx.TxOuts {
-                txowg.Add(1)
+                txwg.Add(1)
                 sem <-true
-                go func(bl *blkparser.Block, tx *blkparser.Tx, pool *redis.Pool, total_tx_out *uint64, txos_cnt *uint32, txo *blkparser.TxOut, txo_index int) {
+                go func(bl *blkparser.Block, tx *blkparser.Tx, pool *redis.Pool, total_tx_out *uint64, txo *blkparser.TxOut, txo_index int) {
                     conn := pool.Get()
                     defer conn.Close()
                     defer func() {
                         <-sem
                     }()
-                    defer txowg.Done()
+                    defer txwg.Done()
                     atomic.AddUint64(total_tx_out, uint64(txo.Value))
-                    //txos = append(txos, ntxo)
-                    atomic.AddUint32(txos_cnt, 1)
+                    //atomic.AddUint32(txos_cnt, 1)
+
 
                     ntxo := new(TxOut)
                     ntxo.TxHash = tx.Hash
@@ -333,33 +338,30 @@ func main () {
                     conn.Do("ZADD", fmt.Sprintf("addr:%v:received", ntxo.Addr), bl.BlockTime, tx.Hash)
 
                     conn.Do("HINCRBY", fmt.Sprintf("addr:%v:h", ntxo.Addr), "tr", ntxo.Value)
-                }(bl, tx, pool, &total_tx_out, &txos_cnt, txo, txo_index)
-            }
-            txowg.Wait()
 
-            err := ldb.Write(wo, wb)
-            if err != nil {
-                log.Fatalf("Err write batch: %v", err)
+                    txomut.Lock()
+                    txos = append(txos, ntxo)
+                    txomut.Unlock()
+                    
+                }(bl, tx, pool, &total_tx_out, txo, txo_index)
             }
-            wb.Clear()
             
-            //txis := []*TxIn{}
-            txis_cnt := uint32(0)
+            //txis_cnt := uint32(0)
             // Skip the ins if it's a CoinBase Tx (1 TxIn for newly generated coins)
             if !(len(tx.TxIns) == 1 && tx.TxIns[0].InputVout==0xffffffff)  {
                 
                 //conn.Send("MULTI")
 
                 for txi_index, txi := range tx.TxIns {
-                    txiwg.Add(1)
+                    txwg.Add(1)
                     sem <-true
-                    go func(txi *blkparser.TxIn, bl *blkparser.Block, tx *blkparser.Tx, pool *redis.Pool, txis_cnt *uint32, total_tx_in *uint64, txi_index int) {
+                    go func(txi *blkparser.TxIn, bl *blkparser.Block, tx *blkparser.Tx, pool *redis.Pool, total_tx_in *uint64, txi_index int) {
                         conn := pool.Get()
                         defer conn.Close()
                         defer func() {
                             <-sem
                         }()
-                        defer txiwg.Done()
+                        defer txwg.Done()
                     
                         ntxi := new(TxIn)
                         ntxi.TxHash = tx.Hash
@@ -434,8 +436,10 @@ func main () {
                         //total_tx_in+= uint(nprevout.Value)
                         atomic.AddUint64(total_tx_in, nprevout.Value)
                         
-                        //txis = append(txis, ntxi)
-                        atomic.AddUint32(txis_cnt, 1)
+                        tximut.Lock()
+                        txis = append(txis, ntxi)
+                        tximut.Unlock()
+                        //atomic.AddUint32(txis_cnt, 1)
 
                         //log.Println("Starting update prev txo")
                         ntxijson, _ := json.Marshal(ntxi)
@@ -451,7 +455,7 @@ func main () {
                         conn.Do("ZADD", fmt.Sprintf("addr:%v", nprevout.Address), bl.BlockTime, tx.Hash)
                         conn.Do("ZADD", fmt.Sprintf("addr:%v:sent", nprevout.Address), bl.BlockTime, tx.Hash)
                         conn.Do("HINCRBY", fmt.Sprintf("addr:%v:h", nprevout.Address), "ts", nprevout.Value)
-                    }(txi, bl, tx, pool, &txis_cnt, &total_tx_in, txi_index)
+                    }(txi, bl, tx, pool, &total_tx_in, txi_index)
                     
                 }
                 //r, err := conn.Do("EXEC")
@@ -460,7 +464,14 @@ func main () {
                 //}
             }
 
-            txiwg.Wait()
+
+            err := ldb.Write(wo, wb)
+            if err != nil {
+                log.Fatalf("Err write batch: %v", err)
+            }
+            wb.Clear()
+
+            txwg.Wait()
 
             total_bl_out+= total_tx_out
 
@@ -470,8 +481,8 @@ func main () {
             ntx.Size = tx.Size
             ntx.LockTime = tx.LockTime
             ntx.Version = tx.Version
-            ntx.TxInCnt = uint32(txis_cnt)
-            ntx.TxOutCnt = uint32(txos_cnt)
+            ntx.TxInCnt = uint32(len(txis))
+            ntx.TxOutCnt = uint32(len(txos))
             ntx.TotalOut = uint64(total_tx_out)
             ntx.TotalIn = uint64(total_tx_in)
             ntx.BlockHash = bl.Hash
@@ -479,13 +490,13 @@ func main () {
             ntx.BlockTime = bl.BlockTime
 
             ntxjson, _ := json.Marshal(ntx)
-            //conn.Send("MULTI")
             ntxjsonkey := fmt.Sprintf("tx:%v", ntx.Hash)
             conn.Do("SET", ntxjsonkey, ntxjson)
             conn.Do("ZADD", fmt.Sprintf("block:%v:txs", block.Hash), tx_index, ntxjsonkey)
-            //conn.Do("EXEC")
+
+            ntx.TxIns = txis
+            ntx.TxOuts = txos
             txs = append(txs, ntx)
-            //txscounter.Mark()
         }
 
         block.TotalBTC = uint64(total_bl_out)
@@ -494,7 +505,9 @@ func main () {
         blockjson, _ := json.Marshal(block)
         conn.Do("ZADD", "blocks", block.BlockTime, block.Hash)
         conn.Do("MSET", fmt.Sprintf("block:%v", block.Hash), blockjson, "height:latest", int(block_height), fmt.Sprintf("block:height:%v", block.Height), block.Hash)
-        //blockscounter.Mark()
+        block.Txs = txs
+        blockjsoncache, _ := json.Marshal(block)
+        conn.Do("SET", fmt.Sprintf("block:%v:cached", block.Hash), blockjsoncache)
         
         if !running {
             log.Printf("Done. Stopped at height: %v.", block_height)
