@@ -5,7 +5,7 @@ BTCplex is an open source [Bitcoin](http://bitcoin.org/) block chain browser wri
 ## Requirements
 
 - A [bitcoind](https://github.com/bitcoin/bitcoin/) instance (you can [build bitcoind in Disable-wallet mode](https://github.com/bitcoin/bitcoin/blob/master/doc/build-unix.md#disable-wallet-mode))
-- Go >=1.1
+- Go >=1.2
 - Redis
 - SSDB
 - 150+GB disk space / 4GB RAM
