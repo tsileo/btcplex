@@ -97,7 +97,6 @@ func SaveBlockFromRPC(conf *Config, pool *redis.Pool, block_height uint) (block 
 			txmut.Lock()
 			*txs = append(*txs, tx)
 			txmut.Unlock()
-			fmt.Printf("TX done")
 		}(txjson, &tout, block, &txs)
 	}
 	wg.Wait()
@@ -120,23 +119,26 @@ func SaveBlockFromRPC(conf *Config, pool *redis.Pool, block_height uint) (block 
         prevcnt, _ := redis.Int(c.Do("ZCARD", prevkey))
         // SSDB doesn't support negative slice yet
         prevs, _ := redis.Strings(c.Do("ZRANGE", prevkey, 0, prevcnt - 1))
-            for _, cprevhash := range prevs {
-                if cprevhash == prevhashtest {
-                    // current block parent
-                    prevhashtest, _ = redis.String(c.Do("HGET", fmt.Sprintf("block:%v:h", cprevhash), "parent"))
-                    // Set main to 1 and the next => prevnext
-                    c.Do("HMSET", fmt.Sprintf("block:%v:h", cprevhash), "main", true, "next", prevnext)
-                    c.Do("SET", fmt.Sprintf("block:height:%v", prevheight), cprevhash)
-                    prevnext = cprevhash
-                } else {
-                    // Set main to 0
-                    c.Do("HSET", fmt.Sprintf("block:%v:h", cprevhash), "main", false)
-                }
+        if len(prevs) == 0 {
+        	break
+        }
+        for _, cprevhash := range prevs {
+            if cprevhash == prevhashtest {
+                // current block parent
+                prevhashtest, _ = redis.String(c.Do("HGET", fmt.Sprintf("block:%v:h", cprevhash), "parent"))
+                // Set main to 1 and the next => prevnext
+                c.Do("HMSET", fmt.Sprintf("block:%v:h", cprevhash), "main", true, "next", prevnext)
+                c.Do("SET", fmt.Sprintf("block:height:%v", prevheight), cprevhash)
+                prevnext = cprevhash
+            } else {
+                // Set main to 0
+                c.Do("HSET", fmt.Sprintf("block:%v:h", cprevhash), "main", false)
             }
-            if len(prevs) == 1 {
-                break
-            }
-            prevheight--    
+        }
+        if len(prevs) == 1 {
+            break
+        }
+        prevheight--    
     }
 	return
 }
