@@ -1,7 +1,7 @@
 package main
 import (
     "log"
-    "blkparser"
+    "github.com/tsileo/blkparser"
     "sync"
     "sync/atomic"
     "time"
