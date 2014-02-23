@@ -4,10 +4,10 @@ package main
 
 import (
 	"github.com/docopt/docopt.go"
-    "os"
-    "log"
+	"log"
+	"os"
 
-    btcplex "github.com/tsileo/btcplex/pkg"
+	btcplex "github.com/tsileo/btcplex/pkg"
 )
 
 func main() {
@@ -22,22 +22,22 @@ Options:
   -c <path>, --config <path>	Path to config file [default: config.json].
 `
 
-    arguments, _ := docopt.Parse(usage, nil, true, "newblock", false)
+	arguments, _ := docopt.Parse(usage, nil, true, "newblock", false)
 
-    confFile := "config.json"
-    if arguments["--config"] != nil {
-    	confFile = arguments["--config"].(string)
-    }
+	confFile := "config.json"
+	if arguments["--config"] != nil {
+		confFile = arguments["--config"].(string)
+	}
 
 	if _, err := os.Stat(confFile); os.IsNotExist(err) {
 		log.Fatalf("Config file not found: %v", confFile)
 	}
 
-    conf, _ := btcplex.LoadConfig(confFile)
+	conf, _ := btcplex.LoadConfig(confFile)
 	pool, _ := btcplex.GetRedis(conf)
 
-    conn := pool.Get()
-    defer conn.Close()
+	conn := pool.Get()
+	defer conn.Close()
 
-    conn.Do("PUBLISH", "btcplex:blocknotify", arguments["<hash>"].(string))
+	conn.Do("PUBLISH", "btcplex:blocknotify", arguments["<hash>"].(string))
 }

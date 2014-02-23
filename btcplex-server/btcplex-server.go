@@ -15,7 +15,7 @@ import (
     "github.com/codegangsta/martini-contrib/render"
     "github.com/codegangsta/martini-contrib/binding"
     "github.com/pmylund/go-cache"
-    btcplex "github.com/tsileo/btcplex/pkg"
+    "btcplex"
     "html/template"
     "github.com/garyburd/redigo/redis"
     "github.com/grafov/bcast"
