@@ -46,6 +46,7 @@ func TxFirstSeenDesc(tx1, tx2 *Tx) bool {
 	return tx1.FirstSeenTime > tx2.FirstSeenTime
 }
 
+// Return all unconfirmed transactions from Redis
 func GetUnconfirmedTxs(pool *redis.Pool) (utxs []*Tx, err error) {
 	c := pool.Get()
 	defer c.Close()
