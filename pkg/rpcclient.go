@@ -3,14 +3,14 @@ package btcplex
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/garyburd/redigo/redis"
 	_ "io/ioutil"
 	"log"
-	"sync"
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
-    "github.com/garyburd/redigo/redis"
 )
 
 const GenesisTx = "4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"
@@ -86,13 +86,13 @@ func SaveBlockFromRPC(conf *Config, pool *redis.Pool, block_height uint) (block 
 	txs := []*Tx{}
 	var txmut sync.Mutex
 	for txindex, txjson := range blockjson["tx"].([]interface{}) {
-		sem <-true
+		sem <- true
 		wg.Add(1)
 		go func(txjson interface{}, tout *uint64, block *Block, txs *[]*Tx) {
 			defer wg.Done()
 			defer func() { <-sem }()
 			tx, _ := SaveTxFromRPC(conf, pool, txjson.(string), block, txindex)
-			//(conf *Config, pool *redis.Pool, tx_id string, block *Block, tx_index int) 
+			//(conf *Config, pool *redis.Pool, tx_id string, block *Block, tx_index int)
 			atomic.AddUint64(tout, tx.TotalOut)
 			txmut.Lock()
 			*txs = append(*txs, tx)
@@ -102,47 +102,46 @@ func SaveBlockFromRPC(conf *Config, pool *redis.Pool, block_height uint) (block 
 	wg.Wait()
 	block.TotalBTC = uint64(tout)
 
-    c.Do("ZADD", fmt.Sprintf("height:%v", block.Height), block.BlockTime, block.Hash)
-    c.Do("HSET", fmt.Sprintf("block:%v:h", block.Hash), "parent", block.Parent)
+	c.Do("ZADD", fmt.Sprintf("height:%v", block.Height), block.BlockTime, block.Hash)
+	c.Do("HSET", fmt.Sprintf("block:%v:h", block.Hash), "parent", block.Parent)
 	blockjson2, _ := json.Marshal(block)
-    c.Do("ZADD", "blocks", block.BlockTime, block.Hash)
-    c.Do("MSET", fmt.Sprintf("block:%v", block.Hash), blockjson2, "height:latest", int(block.Height), fmt.Sprintf("block:height:%v", block.Height), block.Hash)
+	c.Do("ZADD", "blocks", block.BlockTime, block.Hash)
+	c.Do("MSET", fmt.Sprintf("block:%v", block.Hash), blockjson2, "height:latest", int(block.Height), fmt.Sprintf("block:height:%v", block.Height), block.Hash)
 	block.Txs = txs
 	fullblockjson, _ := json.Marshal(block)
 	c.Do("SET", fmt.Sprintf("block:%v:cached", block.Hash), fullblockjson)
-	
+
 	prevheight := block.Height - 1
 	prevhashtest := block.Parent
-    prevnext := block.Hash
-    for {
-        prevkey := fmt.Sprintf("height:%v", prevheight)
-        prevcnt, _ := redis.Int(c.Do("ZCARD", prevkey))
-        // SSDB doesn't support negative slice yet
-        prevs, _ := redis.Strings(c.Do("ZRANGE", prevkey, 0, prevcnt - 1))
-        if len(prevs) == 0 {
-        	break
-        }
-        for _, cprevhash := range prevs {
-            if cprevhash == prevhashtest {
-                // current block parent
-                prevhashtest, _ = redis.String(c.Do("HGET", fmt.Sprintf("block:%v:h", cprevhash), "parent"))
-                // Set main to 1 and the next => prevnext
-                c.Do("HMSET", fmt.Sprintf("block:%v:h", cprevhash), "main", true, "next", prevnext)
-                c.Do("SET", fmt.Sprintf("block:height:%v", prevheight), cprevhash)
-                prevnext = cprevhash
-            } else {
-                // Set main to 0
-                c.Do("HSET", fmt.Sprintf("block:%v:h", cprevhash), "main", false)
-            }
-        }
-        if len(prevs) == 1 {
-            break
-        }
-        prevheight--    
-    }
+	prevnext := block.Hash
+	for {
+		prevkey := fmt.Sprintf("height:%v", prevheight)
+		prevcnt, _ := redis.Int(c.Do("ZCARD", prevkey))
+		// SSDB doesn't support negative slice yet
+		prevs, _ := redis.Strings(c.Do("ZRANGE", prevkey, 0, prevcnt-1))
+		if len(prevs) == 0 {
+			break
+		}
+		for _, cprevhash := range prevs {
+			if cprevhash == prevhashtest {
+				// current block parent
+				prevhashtest, _ = redis.String(c.Do("HGET", fmt.Sprintf("block:%v:h", cprevhash), "parent"))
+				// Set main to 1 and the next => prevnext
+				c.Do("HMSET", fmt.Sprintf("block:%v:h", cprevhash), "main", true, "next", prevnext)
+				c.Do("SET", fmt.Sprintf("block:height:%v", prevheight), cprevhash)
+				prevnext = cprevhash
+			} else {
+				// Set main to 0
+				c.Do("HSET", fmt.Sprintf("block:%v:h", cprevhash), "main", false)
+			}
+		}
+		if len(prevs) == 1 {
+			break
+		}
+		prevheight--
+	}
 	return
 }
-
 
 // Fetch a transaction without additional info, used to fetch previous txouts when parsing txins
 func GetTxOutRPC(conf *Config, tx_id string, txo_vout uint32) (txo *TxOut, err error) {
@@ -266,7 +265,6 @@ func GetTxRPC(conf *Config, tx_id string, block *Block) (tx *Tx, err error) {
 	return
 }
 
-
 // Fetch a transaction via bticoind RPC API
 func SaveTxFromRPC(conf *Config, pool *redis.Pool, tx_id string, block *Block, tx_index int) (tx *Tx, err error) {
 	c := pool.Get()
@@ -304,7 +302,7 @@ func SaveTxFromRPC(conf *Config, pool *redis.Pool, tx_id string, block *Block, t
 		_, coinbase := txijson.(map[string]interface{})["coinbase"]
 		if !coinbase {
 			wg.Add(1)
-			sem <-true
+			sem <- true
 			go func(pool *redis.Pool, txijson interface{}, txiindex int, total_tx_in *uint64, tx *Tx, block *Block) {
 				defer wg.Done()
 				defer func() { <-sem }()
@@ -332,37 +330,37 @@ func SaveTxFromRPC(conf *Config, pool *redis.Pool, tx_id string, block *Block, t
 				atomic.AddUint64(total_tx_in, uint64(txinjsonprevout.Value))
 
 				txi.PrevOut = txinjsonprevout
-				
+
 				tximut.Lock()
 				tx.TxIns = append(tx.TxIns, txi)
 				tximut.Unlock()
 
-                txospent := new(TxoSpent)
-                txospent.Spent = true
-                txospent.BlockHeight = uint32(block.Height)
-                txospent.InputHash = tx.Hash
-                txospent.InputIndex = uint32(txiindex)
+				txospent := new(TxoSpent)
+				txospent.Spent = true
+				txospent.BlockHeight = uint32(block.Height)
+				txospent.InputHash = tx.Hash
+				txospent.InputIndex = uint32(txiindex)
 
-                ntxijson, _ := json.Marshal(txi)
-                ntxikey := fmt.Sprintf("txi:%v:%v", tx.Hash, txiindex)
+				ntxijson, _ := json.Marshal(txi)
+				ntxikey := fmt.Sprintf("txi:%v:%v", tx.Hash, txiindex)
 
-                txospentjson, _ := json.Marshal(txospent)
+				txospentjson, _ := json.Marshal(txospent)
 
-                c.Do("SET", ntxikey, ntxijson)
-                //conn.Send("ZADD", fmt.Sprintf("txi:%v", tx.Hash), txi_index, ntxikey)
+				c.Do("SET", ntxikey, ntxijson)
+				//conn.Send("ZADD", fmt.Sprintf("txi:%v", tx.Hash), txi_index, ntxikey)
 
-                c.Do("SET", fmt.Sprintf("txo:%v:%v:spent", txinjsonprevout.Hash, txinjsonprevout.Vout), txospentjson)
+				c.Do("SET", fmt.Sprintf("txo:%v:%v:spent", txinjsonprevout.Hash, txinjsonprevout.Vout), txospentjson)
 
-                c.Do("ZADD", fmt.Sprintf("addr:%v", txinjsonprevout.Address), block.BlockTime, tx.Hash)
-                c.Do("ZADD", fmt.Sprintf("addr:%v:sent", txinjsonprevout.Address), block.BlockTime, tx.Hash)
-                c.Do("HINCRBY", fmt.Sprintf("addr:%v:h", txinjsonprevout.Address), "ts", txinjsonprevout.Value)
+				c.Do("ZADD", fmt.Sprintf("addr:%v", txinjsonprevout.Address), block.BlockTime, tx.Hash)
+				c.Do("ZADD", fmt.Sprintf("addr:%v:sent", txinjsonprevout.Address), block.BlockTime, tx.Hash)
+				c.Do("HINCRBY", fmt.Sprintf("addr:%v:h", txinjsonprevout.Address), "ts", txinjsonprevout.Value)
 
 			}(pool, txijson, txiindex, &total_tx_in, tx, block)
 		}
 	}
 	for txo_index, txojson := range txjson["vout"].([]interface{}) {
 		wg.Add(1)
-		sem <-true
+		sem <- true
 		go func(pool *redis.Pool, txojson interface{}, txo_index int, total_tx_out *uint64, tx *Tx, block *Block) {
 			defer wg.Done()
 			defer func() { <-sem }()
@@ -372,7 +370,7 @@ func SaveTxFromRPC(conf *Config, pool *redis.Pool, tx_id string, block *Block, t
 			txoval, _ := txojson.(map[string]interface{})["value"].(json.Number).Float64()
 			txo.Value = FloatToUint(txoval)
 			//txo.Addr = txojson.(map[string]interface{})["scriptPubKey"].(map[string]interface{})["addresses"].([]interface{})[0].(string)
-			
+
 			if txojson.(map[string]interface{})["scriptPubKey"].(map[string]interface{})["type"].(string) != "nonstandard" {
 				txodata, txoisinterface := txojson.(map[string]interface{})["scriptPubKey"].(map[string]interface{})["addresses"].([]interface{})
 				if txoisinterface {
@@ -393,14 +391,14 @@ func SaveTxFromRPC(conf *Config, pool *redis.Pool, tx_id string, block *Block, t
 			//total_tx_out += uint64(txo.Value)
 			atomic.AddUint64(total_tx_out, uint64(txo.Value))
 
-	        ntxojson, _ := json.Marshal(txo)
-	        ntxokey := fmt.Sprintf("txo:%v:%v", tx.Hash, txo_index)
-	        c.Do("SET", ntxokey, ntxojson)
-	        //conn.Send("ZADD", fmt.Sprintf("txo:%v", tx.Hash), txo_index, ntxokey)
-	        c.Do("ZADD", fmt.Sprintf("addr:%v", txo.Addr), block.BlockTime, tx.Hash)
-	        c.Do("ZADD", fmt.Sprintf("addr:%v:received", txo.Addr), block.BlockTime, tx.Hash)
-	        c.Do("HINCRBY", fmt.Sprintf("addr:%v:h", txo.Addr), "tr", txo.Value)
-	    }(pool, txojson, txo_index, &total_tx_out, tx, block)
+			ntxojson, _ := json.Marshal(txo)
+			ntxokey := fmt.Sprintf("txo:%v:%v", tx.Hash, txo_index)
+			c.Do("SET", ntxokey, ntxojson)
+			//conn.Send("ZADD", fmt.Sprintf("txo:%v", tx.Hash), txo_index, ntxokey)
+			c.Do("ZADD", fmt.Sprintf("addr:%v", txo.Addr), block.BlockTime, tx.Hash)
+			c.Do("ZADD", fmt.Sprintf("addr:%v:received", txo.Addr), block.BlockTime, tx.Hash)
+			c.Do("HINCRBY", fmt.Sprintf("addr:%v:h", txo.Addr), "tr", txo.Value)
+		}(pool, txojson, txo_index, &total_tx_out, tx, block)
 
 	}
 
@@ -411,10 +409,10 @@ func SaveTxFromRPC(conf *Config, pool *redis.Pool, tx_id string, block *Block, t
 	tx.TotalOut = uint64(total_tx_out)
 	tx.TotalIn = uint64(total_tx_in)
 
-    ntxjson, _ := json.Marshal(tx)
-    ntxjsonkey := fmt.Sprintf("tx:%v", tx.Hash)
-    c.Do("SET", ntxjsonkey, ntxjson)
-    c.Do("ZADD", fmt.Sprintf("block:%v:txs", block.Hash), tx_index, ntxjsonkey)
+	ntxjson, _ := json.Marshal(tx)
+	ntxjsonkey := fmt.Sprintf("tx:%v", tx.Hash)
+	c.Do("SET", ntxjsonkey, ntxjson)
+	c.Do("ZADD", fmt.Sprintf("block:%v:txs", block.Hash), tx_index, ntxjsonkey)
 
 	return
 }

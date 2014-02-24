@@ -1,9 +1,9 @@
 package btcplex
 
 import (
-    "github.com/garyburd/redigo/redis"
-	"strconv"
 	"fmt"
+	"github.com/garyburd/redigo/redis"
+	"strconv"
 )
 
 // Use SSDB

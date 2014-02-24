@@ -10,11 +10,11 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-	
-	"github.com/tsileo/blkparser"
+
 	"github.com/garyburd/redigo/redis"
 	"github.com/jmhodges/levigo"
 	"github.com/pmylund/go-cache"
+	"github.com/tsileo/blkparser"
 )
 
 type Block struct {

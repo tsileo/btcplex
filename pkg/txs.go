@@ -1,10 +1,10 @@
 package btcplex
 
 import (
+	"encoding/json"
+	"fmt"
+	"github.com/garyburd/redigo/redis"
 	"sort"
-    "github.com/garyburd/redigo/redis"
-    "fmt"
-    "encoding/json"
 )
 
 type By func(tx1, tx2 *Tx) bool

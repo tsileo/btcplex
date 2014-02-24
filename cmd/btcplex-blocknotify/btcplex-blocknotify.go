@@ -3,9 +3,10 @@
 package main
 
 import (
-	"github.com/docopt/docopt.go"
 	"log"
 	"os"
+
+	"github.com/docopt/docopt.go"
 
 	btcplex "github.com/tsileo/btcplex/pkg"
 )

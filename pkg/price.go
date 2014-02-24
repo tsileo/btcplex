@@ -1,9 +1,9 @@
 package btcplex
 
 import (
-	"net/http"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"strconv"
 )
 
