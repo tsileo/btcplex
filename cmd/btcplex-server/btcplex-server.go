@@ -63,6 +63,7 @@ type RedisWrapper struct {
 const (
 	ratelimitwindow = 3600
 	ratelimitcnt    = 3600
+	txperpage = 20
 )
 
 // Used to rate-limit the API
@@ -383,7 +384,6 @@ Options:
 	})
 
 	m.Get("/address/:address", func(params martini.Params, r render.Render, db *redis.Pool, req *http.Request) {
-		txperpage := 50
 		pm := new(pageMeta)
 		pm.LastHeight = uint(latestheight)
 		pm.PaginationData = new(PaginationData)
@@ -415,7 +415,6 @@ Options:
 		r.HTML(200, "address", pm)
 	})
 	m.Get("/api/v1/address/:address", func(params martini.Params, r render.Render, db *redis.Pool, req *http.Request) {
-		txperpage := 50
 		addressdata, _ := btcplex.GetAddress(db, params["address"])
 		lastPage := int(math.Ceil(float64(addressdata.TxCnt) / float64(txperpage)))
 		currentPageStr := req.URL.Query().Get("page")
