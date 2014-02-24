@@ -41,12 +41,18 @@ Blocks, transactions, TxIns, TxOuts are stored in JSON format (SSDB support Redi
 
 ### Hashes
 
-BTCplex keeps one hashes per address (``addr:%v:h`` (address)) containing TotalSent, TotalReceived. 
+BTCplex keeps one hash per address (``addr:%v:h`` (address)) containing TotalSent, TotalReceived. 
 
 Hash keys for address data:
 
 - ``ts`` -> TotalSent
 - ``tr`` -> TotalReceived
+
+And one hash per block (``block:%v:h`` (hash)) containing the following keys:
+
+- ``main`` -> Boolean, false if the block is orphaned
+- ``next`` -> Hash of the next block, if any
+- ``parent`` -> Hash of the previous block
 
 
 ### Sorted Sets

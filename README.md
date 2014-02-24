@@ -1,6 +1,6 @@
 # BTCplex
 
-BTCplex is an open source [Bitcoin](http://bitcoin.org/) block chain browser written in [Go](http://golang.org/), it allows you to search and navigate the [block chain](https://en.bitcoin.it/wiki/Block_chain).
+BTCplex is an open source [Bitcoin](http://bitcoin.org/) block chain browser written in [Go](http://golang.org/), it allows you to search and navigate the [block chain](https://en.bitcoin.it/wiki/Block_chain). Also provides APIs to access data pragmatically.
 
 **This is an early release, you might expect some bugs.**
 
@@ -8,18 +8,29 @@ BTCplex is an open source [Bitcoin](http://bitcoin.org/) block chain browser wri
 
 - A [bitcoind](https://github.com/bitcoin/bitcoin/) instance (you can [build bitcoind in Disable-wallet mode](https://github.com/bitcoin/bitcoin/blob/master/doc/build-unix.md#disable-wallet-mode))
 - Go >=1.2
-- Redis 2.6+
-- SSDB
+- [Redis](http://redis.io/) 2.6+
+- [SSDB](https://github.com/ideawu/ssdb)
+- [LevelDB](https://code.google.com/p/leveldb/)
 - 150+GB disk space / 4+GB RAM
 
-Build btcplex database takes **1 week and few days** on a small server (dual core 1.2GHz/6GB RAM) and **28 hours** on dedicated server (i5/16GB RAM).
+Building BTCplex database takes **1 week and few days** on a small server (dual core 1.2GHz/6GB RAM) and **28 hours** on a more powerful server (i5/16GB RAM).
 
 ## Installation
 
-Assuming you have a working Go workspace (and $GOPATH already set), Redis and SSDB already installed:
+Assuming you have:
+
+- a working Go workspace (and ``$GOPATH`` already set)
+- [Redis 2.6+](http://redis.io/)
+- [SSDB](https://github.com/ideawu/ssdb)
+- [LevelDB](https://code.google.com/p/leveldb/) ([nice tutorial](http://techoverflow.net/blog/2012/12/14/compiling-installing-leveldb-on-linux/))
+- [Snappy](http://code.google.com/p/snappy/)
+
+You will also need to export ``CGO_LDFLAGS``, needed to install [levigo](https://github.com/jmhodges/levigo).
+
 
     $ git clone https://github.com/tsileo/btcplex.git
     $ cd btcplex
+    $ export CGO_LDFLAGS="-L/usr/local/lib -L/usr/local/lib -lsnappy"
     $ ./build.sh
     $ cp -r config.sample.json config.json
     $ vim config.json
