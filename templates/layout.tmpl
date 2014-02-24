@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="{{.Description}}">
+    <meta name="author" content="Thomas Sileo">
+    <link rel="shortcut icon" href="https://btcplex.s3.amazonaws.com/favicon.ico">
+
+    <title>{{.Title}} - Bitcoin Block Chain Explorer - BTCPlex</title>
+
+    <link href="//netdna.bootstrapcdn.com/bootswatch/3.0.3/yeti/bootstrap.min.css" rel="stylesheet">
+    <link href="//fonts.googleapis.com/css?family=Inconsolata:400,700" rel="stylesheet">
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/jquery-jgrowl/1.2.12/jquery.jgrowl.min.css">
+  
+    <style type="text/css">
+    #main {
+    	margin-top: 60px;
+    }
+    a:target {
+      color:#001f3f;
+    }
+
+    dl {
+      margin: 30px 0;
+    }
+
+    span.address, .hash {
+      font-family: "Inconsolata";
+      font-size: 1.15em;
+    }
+
+    .mono {
+      font-family: "Inconsolata";
+    }
+
+    .anchor:before {
+   content: "";
+   display: block;
+   height: 50px;
+   margin: -30px 0 0;
+}
+
+#footer {
+  margin-top:10px;color:#999;
+}
+
+#footer > div {
+  padding:20px 0;
+}
+
+
+@media (min-width: 979px) {
+    #apiendpoints {
+      position:fixed;width:260px;
+    }
+  }
+
+    </style>
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+      <script src="https://oss.maxcdn.com/libs/respond.js/1.3.0/respond.min.js"></script>
+    <![endif]-->
+  </head>
+
+  <body>
+
+    <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+      <div class="container">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a class="navbar-brand" href="/">BTCplex</a>
+        </div>
+        <div class="collapse navbar-collapse">
+          <ul class="nav navbar-nav">
+            <li{{if eq .Menu "latest_blocks"}} class="active"{{end}}><a href="/">Latest blocks</a></li>
+            <li{{if eq .Menu "utxs"}} class="active"{{end}}><a href="/unconfirmed-transactions">Unconfirmed transactions</a></li>
+        
+            <li class="dropdown {{if eq .Menu "api"}}active{{end}}">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown">API <b class="caret"></b></a>
+          <ul class="dropdown-menu">
+            <li><a href="/api">Overview</a></li>
+            <li><a href="/docs/query_api">Query API</a></li>
+            <li><a href="/docs/rest_api">REST API</a></li>
+            <li><a href="/docs/sse_api">Server-Sent Events API</a></li>
+          </ul>
+        </li>
+            <li{{if eq .Menu "about"}} class="active"{{end}}><a href="/about">About</a></li>
+          </ul>
+
+        <form class="navbar-form navbar-right" role="search" method="post" action="/search">
+  <div class="form-group">
+    <input type="text" class="form-control" placeholder="Search block, tx or address" name="q">
+  </div>
+</form>
+
+
+<ul class="nav navbar-nav navbar-right">
+            {{if .Price}}
+            <li><p class="navbar-text">1BTC = <span id="price">{{.Price}}</span>USD</p></li>
+            {{end}}
+          </ul>
+
+        </div><!--/.nav-collapse -->
+
+      </div>
+    </div>
+
+    <div class="container" id="main">
+
+    {{if .Error}}
+    <div class="alert alert-danger">
+      <strong>Oops!</strong> {{.Error}}.
+    </div>
+    {{end}}
+
+      {{ yield }}
+
+      <footer id="footer">
+      <div class="pull-left">
+        © 2014 Thomas Sileo <a href="https://twitter.com/trucsdedev">@trucsdedev</a> / <a href="http://thomassileo.com/">thomassileo.com</a>
+      </div>
+
+      <div class="pull-right">
+        <a href="https://github.com/tsileo/btcplex">BTCplex on GitHub</a> | <a href="mailto:contact@btcplex.com">Feedback</a> | Donations: <a href="/address/19gzwTuuZDec8JZEddQUZH9kwzqkBfFtDa" class="hash">19gzwTuuZDec8JZEddQUZH9kwzqkBfFtDa</a>  
+      </div>
+      
+      </footer>
+
+    </div><!-- /.container -->
+
+    <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/jquery-jgrowl/1.2.12/jquery.jgrowl.min.js"></script>
+    <script src="//netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/jquery-timeago/1.1.0/jquery.timeago.min.js"></script>
+    <script type="text/javascript">
+    $(function() {
+      if ($('#apiendpoints').length == 1) {
+        $(document).scroll(function() {
+          if ($(document).scrollTop() > 50) { $('#apiendpoints').css('top', '60px'); } else { $('#apiendpoints').css('top', '') };
+        })
+      };
+      $("time").timeago();
+      if ($('#qrcode').length == 1) {
+        $('#addressQRCodeModal').on('show.bs.modal', function(e) {
+          $.getScript("https://cdnjs.cloudflare.com/ajax/libs/jquery.qrcode/1.0/jquery.qrcode.min.js", function() {
+            $('#qrcode').qrcode({text: $('#qrcode').data('addr')});
+          });
+        });
+      };
+
+
+    var source = new EventSource('/events');
+    source.onmessage = function(e) {
+      var data = JSON.parse(e.data);
+      if (data.t == "price") {
+        $.jGrowl("Price updated!");
+        $('#price').html(data.price);
+      };
+      if (data.t == "height") {
+        $.jGrowl("New block found!");
+      };
+    };
+
+    if ($("#unconfirmedcnt").length == 1) {
+      var source2 = new EventSource('/events_unconfirmed');
+      source2.onmessage = function(e) {
+        $('#waiting').hide();
+        var data = JSON.parse(e.data);
+        $('#unconfirmedcnt').html(data.cnt);
+        $('#txs').prepend(data.tmpl);
+        if ($('#txs').size() > 50) {
+          $('#txs').last().remove();
+        }
+        $("time").timeago();
+      };
+    };
+
+    });
+    </script>
+  </body>
+</html>

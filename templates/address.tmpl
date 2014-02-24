@@ -1,0 +1,157 @@
+{{with .AddressData}}
+  <h2>Address <small class="mono">{{.Address}}</small></h2>
+
+  {{$addr := .Address}}
+
+  <dl class="dl-horizontal">
+    <dt>Address</dt>
+    <dd class="hash">{{.Address}}</dd>
+
+    <dt>Transactions</dt>
+    <dd>{{.TxCnt}}</dd>
+
+    {{if .TxCnt}}
+
+    <dt>Received Transactions</dt>
+    <dd>{{.ReceivedCnt}}</dd>
+
+    <dt>Total Received</dt>
+    <dd>{{.TotalReceived | tobtc}}</dd>
+
+    <dt>Sent Transactions</dt>
+    <dd>{{.SentCnt}}</dd>
+
+    <dt>Total Sent</dt>
+    <dd>{{.TotalSent | tobtc}}</dd>
+
+    {{end}}
+
+    <dt>Final Balance</dt>
+    <dd>{{.FinalBalance | tobtc}}</dd>
+
+    <dt class="text-muted">QR Code</dt>
+    <dd><a href="" class="text-muted" data-toggle="modal" data-target="#addressQRCodeModal">Display</a></dd>
+
+    <dt class="text-muted">API</dt>
+    <dd><a class="text-muted" href="/api/v1/address/{{.Address}}">JSON</a></dd>
+
+   </dl>
+
+{{if .Txs}}
+<h3>Transactions</h3>
+  <div class="table-responsive">
+  <table class="table table-striped table-condensed">
+    <thead>
+      <tr>
+        <th>Transaction</th>
+        <th>Block</th>
+        <th>Time</th>
+        <th>From</th>
+        <th>To</th>
+        <th>Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+        {{range .Txs}}
+        <tr>
+          <td style="vertical-align:middle"><a href="/tx/{{.Hash}}" class="hash">{{cutmiddle .Hash 6}}</a></td>
+          <td style="vertical-align:middle"><a href="/block/{{.BlockHash}}">{{.BlockHeight}}</a></td>
+          <td style="vertical-align:middle">{{.BlockTime | formattime}} (<time datetime="{{.BlockTime | formatiso}}">{{.BlockTime | formattime}}</time>)</td>
+          <td style="vertical-align:middle">
+          
+      <ul class="list-unstyled">
+
+
+          {{if .TxAddressInfo.InTxIn}}
+        
+        <li style="white-space: nowrap;"><span class="hash">{{$addr}}</span></li>
+
+          {{else}}
+          
+
+          {{if .TxIns}}
+          {{range .TxIns}}
+          <li style="white-space: nowrap;"><a href="/address/{{.PrevOut.Address}}" class="hash">{{.PrevOut.Address}}</a>: {{.PrevOut.Value |tobtc}}</li>
+          {{end}}
+          {{else}}
+          <li style="white-space: nowrap;">Generation: {{. | generationmsg}}</li>
+          {{end}}
+          </ul>
+
+          {{end}}
+
+
+          </td>
+          
+          <td style="vertical-align:middle">
+          <ul class="list-unstyled">
+
+          {{if .TxAddressInfo.InTxOut}}
+          
+          <li style="white-space: nowrap;"><span class="hash">{{$addr}}</span></li>
+
+          {{else}}
+          
+          {{range .TxOuts}}
+          <li style="white-space: nowrap;"><a href="/address/{{.Addr}}" class="hash">{{.Addr}}</a>: {{.Value |tobtc}}</li>
+          {{end}}
+
+
+          </ul>
+          {{end}}
+          </td>
+          <td style="vertical-align:middle">{{.TxAddressInfo.Value | inttobtc}}</td>
+        </tr>
+        {{end}}
+    </tbody>
+  </table>
+  </div>
+
+{{else}}
+<p class="lead">This address hasn't been used on the network yet.</p>
+{{end}}
+
+
+<!-- Modal -->
+<div class="modal fade" id="addressQRCodeModal" tabindex="-1" role="dialog" aria-labelledby="addressQRCodeModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+        <h4 class="modal-title" id="addressQRCodeModalLabel">{{.Address}} QR Code</h4>
+      </div>
+      <div class="modal-body">
+        <div id="qrcode" data-addr="{{.Address}}" style="text-align:center;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+      </div>
+    </div><!-- /.modal-content -->
+  </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+
+{{end}}
+
+{{if .AddressData.Txs}}
+<div class="center-block text-center">
+<ul class="pagination ">
+{{if .PaginationData.Prev}}
+   <li><a href="?page={{.PaginationData.Prev}}">&laquo;</a></li>
+{{else}}
+  <li class="disabled"><a href="#">&laquo;</a></li>
+{{ end }}
+{{$cpage := .PaginationData.CurrentPage}}
+ {{range $index, $tmp := .PaginationData.Pages}}
+ {{$page := iadd $index 1}}
+  <li {{if eq $page $cpage}}class="active"{{end}}><a href="?page={{$page}}">{{$page}}</a></li>
+ {{end}}
+
+{{if .PaginationData.Next}}
+   <li><a href="?page={{.PaginationData.Next}}">&raquo;</a></li>
+{{else}}
+  <li class="disabled"><a href="#">&raquo;</a></li>
+{{ end }}
+</ul>
+</div>
+
+{{end}}

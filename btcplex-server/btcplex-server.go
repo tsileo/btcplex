@@ -9,6 +9,7 @@ import (
     "encoding/json"
     "strings"
     "time"
+    "math"
     "io"
     "io/ioutil"
     "github.com/codegangsta/martini"
@@ -42,6 +43,15 @@ type PageMeta struct {
     CurrentHeight uint
     Error string
     Price float64
+    PaginationData *PaginationData
+}
+
+type PaginationData struct {
+    CurrentPage int
+    MaxPage int
+    Next int
+    Prev int
+    Pages []struct{}
 }
 
 type RedisWrapper struct {
@@ -84,6 +94,22 @@ func BcastToRedisPubSub(pool *redis.Pool, psgroup *bcast.Group, redischannel str
             h1.Close()
         }
     }
+}
+
+func AddHATEOAS(links map[string]map[string]string, key string, link string) map[string]map[string]string {
+    newlink := map[string]string{}
+    newlink["href"] = link
+    links[key] = newlink
+    return links
+}
+
+func InitHATEOAS(links map[string]map[string]string, req *http.Request) map[string]map[string]string {
+    links = map[string]map[string]string{}
+    return AddHATEOAS(links, "self", req.URL.String())
+}
+
+func N(n int) []struct{} {
+    return make([]struct{}, n)
 }
 
 func main() {
@@ -166,13 +192,13 @@ func main() {
         "generationmsg": func(tx *btcplex.Tx) string {
             reward := btcplex.GetBlockReward(tx.BlockHeight)
             fee := float64(tx.TotalOut - uint64(reward)) / 1e8
-            return fmt.Sprintf("%v BTC + %v total fees", float64(reward) / 1e8, fee)
+            return fmt.Sprintf("%v BTC + %.8f total fees", float64(reward) / 1e8, fee)
         },
         "tobtc": func(val uint64) string {
-            return fmt.Sprintf("%v", float64(val) / 1e8)
+            return fmt.Sprintf("%.8f", float64(val) / 1e8)
         },
         "inttobtc": func(val int64) string {
-            return fmt.Sprintf("%v", float64(val) / 1e8)
+            return fmt.Sprintf("%.8f", float64(val) / 1e8)
         },
         "formatprevout": func(prevout *btcplex.PrevOut) string {
             return fmt.Sprintf("%v:%v", prevout.Hash, prevout.Vout)
@@ -187,6 +213,9 @@ func main() {
             return h - p
         },
         "add": func(h, p uint) uint {
+            return h + p
+        },
+        "iadd": func(h, p int) int {
             return h + p
         },
         "confirmation": func(height uint) uint {
@@ -276,9 +305,17 @@ func main() {
         pm.Description = fmt.Sprintf("Bitcoin block #%v summary and related transactions", block.Height)
         r.HTML(200, "block", &pm)
     })
-    m.Get("/api/v1/block/:hash", func(params martini.Params, r render.Render, db *redis.Pool) {
+
+    m.Get("/api/v1/block/:hash", func(params martini.Params, r render.Render, db *redis.Pool, req *http.Request) {
         block, _ := btcplex.GetBlockByHash(db, params["hash"])
         block.FetchTxs(db)
+        block.Links = InitHATEOAS(block.Links, req)
+        if block.Parent != "" {
+            block.Links = AddHATEOAS(block.Links, "previous_block", fmt.Sprintf("/api/v1/block/%v", block.Parent))    
+        }
+        if block.Next != "" {
+            block.Links = AddHATEOAS(block.Links, "next_block", fmt.Sprintf("/api/v1/block/%v", block.Next))    
+        }
         r.JSON(200, block)
     })
     
@@ -314,7 +351,7 @@ func main() {
         pm.Description = fmt.Sprintf("Bitcoin transaction %v summary.", tx.Hash)
         r.HTML(200, "tx", pm)
     })
-    m.Get("/api/v1/tx/:hash", func(params martini.Params, r render.Render, db *redis.Pool, rdb *RedisWrapper) {
+    m.Get("/api/v1/tx/:hash", func(params martini.Params, r render.Render, db *redis.Pool, rdb *RedisWrapper, req *http.Request) {
         var tx *btcplex.Tx
         rpool := rdb.Pool
         isutx, _ := btcplex.IsUnconfirmedTx(rpool, params["hash"])
@@ -324,21 +361,66 @@ func main() {
             tx, _ = btcplex.GetTx(db, params["hash"])
             tx.Build(db)
         }
+        tx.Links = InitHATEOAS(tx.Links, req)
+        if tx.BlockHash != "" {
+            tx.Links = AddHATEOAS(tx.Links, "block", fmt.Sprintf("/api/v1/block/%v", tx.BlockHash))
+        }
         r.JSON(200, tx)
     })
 
-    m.Get("/address/:address", func(params martini.Params, r render.Render, db *redis.Pool) {
+    m.Get("/address/:address", func(params martini.Params, r render.Render, db *redis.Pool, req *http.Request) {
+        txperpage := 50
         pm := new(PageMeta)
         pm.Price = price
         pm.LastHeight = uint(latestheight)
-        addressdata, _ := btcplex.GetAddress(db, params["address"])
-        pm.AddressData = addressdata
+        pm.PaginationData = new(PaginationData)
         pm.Title = fmt.Sprintf("Bitcoin address %v", params["address"])
         pm.Description = fmt.Sprintf("Transactions and summary for the Bitcoin address %v.", params["address"])
+        // AddressData
+        addressdata, _ := btcplex.GetAddress(db, params["address"])
+        pm.AddressData = addressdata
+        // Pagination
+        d := float64(addressdata.TxCnt) / float64(txperpage)
+        pm.PaginationData.MaxPage = int(math.Ceil(d))
+        currentPage := req.URL.Query().Get("page")
+        if currentPage == "" {
+            currentPage = "1"
+        }
+        pm.PaginationData.CurrentPage, _ = strconv.Atoi(currentPage)
+        pm.PaginationData.Pages = N(pm.PaginationData.MaxPage)
+        pm.PaginationData.Next = 0
+        pm.PaginationData.Prev = 0
+        if pm.PaginationData.CurrentPage > 1 {
+            pm.PaginationData.Prev = pm.PaginationData.CurrentPage - 1
+        }
+        if pm.PaginationData.CurrentPage < pm.PaginationData.MaxPage {
+            pm.PaginationData.Next = pm.PaginationData.CurrentPage + 1
+        }
+        fmt.Printf("%+v\n", pm.PaginationData)
+        // Fetch txs given the pagination
+        addressdata.FetchTxs(db, txperpage * (pm.PaginationData.CurrentPage - 1), txperpage * pm.PaginationData.CurrentPage)
         r.HTML(200, "address", pm)
     })
-    m.Get("/api/v1/address/:address", func(params martini.Params, r render.Render, db *redis.Pool) {
+    m.Get("/api/v1/address/:address", func(params martini.Params, r render.Render, db *redis.Pool, req *http.Request) {
+        txperpage := 50
         addressdata, _ := btcplex.GetAddress(db, params["address"])
+        lastPage := int(math.Ceil(float64(addressdata.TxCnt) / float64(txperpage)))
+        currentPageStr := req.URL.Query().Get("page")
+        if currentPageStr == "" {
+            currentPageStr = "1"
+        }
+        currentPage, _ := strconv.Atoi(currentPageStr)
+        // HATEOS section
+        addressdata.Links = InitHATEOAS(addressdata.Links, req)
+        pageurl := "/api/v1/address/%v?page=%v"
+        if currentPage < lastPage {
+            addressdata.Links = AddHATEOAS(addressdata.Links, "last", fmt.Sprintf(pageurl, params["address"], lastPage))
+            addressdata.Links = AddHATEOAS(addressdata.Links, "next", fmt.Sprintf(pageurl, params["address"], currentPage + 1))
+        }
+        if currentPage > 1 {
+            addressdata.Links = AddHATEOAS(addressdata.Links, "previous", fmt.Sprintf(pageurl, params["address"], currentPage - 1))
+        }
+        addressdata.FetchTxs(db, txperpage * (currentPage - 1), txperpage * currentPage)
         r.JSON(200, addressdata)
     })
 
@@ -350,6 +432,39 @@ func main() {
         pm.Description = "BTCPlex provides JSON API for developers to retrieve Bitcoin block chain data pragmatically"
         pm.Menu = "api"
         r.HTML(200, "api_docs", pm)
+    })
+
+    m.Get("/docs/query_api", func(r render.Render) {
+        pm := new(PageMeta)
+        pm.Price = price
+        pm.LastHeight = uint(latestheight)
+        pm.Title = "Query API Documentation"
+        pm.Description = "BTCPlex provides JSON API for developers to retrieve Bitcoin block chain data pragmatically"
+        pm.Menu = "api"
+        // TODO menu2
+        r.HTML(200, "docs_query_api", pm)
+    })
+
+    m.Get("/docs/rest_api", func(r render.Render) {
+        pm := new(PageMeta)
+        pm.Price = price
+        pm.LastHeight = uint(latestheight)
+        pm.Title = "REST API Documentation"
+        pm.Description = "BTCPlex provides JSON API for developers to retrieve Bitcoin block chain data pragmatically"
+        pm.Menu = "api"
+        // TODO menu2
+        r.HTML(200, "docs_rest_api", pm)
+    })
+
+    m.Get("/docs/sse_api", func(r render.Render) {
+        pm := new(PageMeta)
+        pm.Price = price
+        pm.LastHeight = uint(latestheight)
+        pm.Title = "Server-Sent Events API Documentation"
+        pm.Description = "BTCPlex provides JSON API for developers to retrieve Bitcoin block chain data pragmatically"
+        pm.Menu = "api"
+        // TODO menu2
+        r.HTML(200, "docs_sse_api", pm)
     })
 
     m.Get("/about", func(r render.Render) {

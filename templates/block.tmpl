@@ -1,0 +1,89 @@
+{{with .Block}}
+<h2>Block #{{.Height}}</h2>
+
+<dl class="dl-horizontal">
+  <dt>Hash</dt>
+  <dd class="hash">{{.Hash}}</dd>
+
+  <dt>Previous Block</dt>
+  <dd><a href="/block/{{.Parent}}" class="hash">{{.Parent}}</a></dd>
+
+  {{if .Next}}
+  <dt>Next Block</dt>
+  <dd><a href="/block/{{.Next}}" class="hash">{{.Next}}</a></dd>
+  {{end}}
+
+  <dt>Merkle Root</dt>
+  <dd class="hash">{{.MerkleRoot}}</dd>
+
+  <dt>Height</dt>
+  <dd>{{.Height}}</dd>
+
+  <dt>Time</dt>
+  <dd>{{.BlockTime | formattime}} (<time datetime="{{.BlockTime | formatiso}}">{{.BlockTime | formattime}}</time>)</dd>
+
+  <dt>Total BTC</dt>
+  <dd>{{.TotalBTC |tobtc}}</dd>
+
+  <dt>Transactions</dt>
+  <dd>{{.TxCnt}}</dd>
+
+  <dt>Version</dt>
+  <dd>{{.Version}}</dd>
+
+  <dt>Bits</dt>
+  <dd>{{.Bits}}</dd>
+
+  <dt>Nonce</dt>
+  <dd>{{.Nonce}}</dd>
+
+  <dt>Size</dt>
+  <dd>{{ .Size | tokb }} KB</dd>
+
+  <dt class="text-muted">API</dt>
+  <dd><a class="text-muted" href="/api/v1/block/{{.Hash}}">JSON</a></dd>
+</dl>
+
+<h3>Transactions</h3>
+
+<div class="table-responsive">
+<table class="table table-striped table-condensed">
+  <thead>
+    <tr>
+      <th>Transaction</th>
+      <th>Fee</th>
+      <th>Size (KB)</th>
+      <th>From</th>
+      <th>To</th>
+    </tr>
+  </thead>
+  <tbody>
+      {{range .Txs}}
+      <tr>
+        <td style="vertical-align:middle"><a href="/tx/{{.Hash}}" class="hash">{{cutmiddle .Hash 15}}</a></td>
+        <td style="vertical-align:middle">{{. | computefee}}</td>
+        <td style="vertical-align:middle">{{.Size | tokb}}</td>
+        <td style="vertical-align:middle">
+        <ul class="list-unstyled">
+        {{if .TxIns}}
+        {{range .TxIns}}
+        <li style="white-space: nowrap;"><a href="/address/{{.PrevOut.Address}}" class="hash">{{.PrevOut.Address}}</a>: {{.PrevOut.Value |tobtc}}</li>
+        {{end}}
+        {{else}}
+        <li style="white-space: nowrap;">Generation: {{. | generationmsg}}</li>
+        {{end}}
+        </ul></td>
+        
+        <td style="vertical-align:middle">
+        <ul class="list-unstyled">
+        {{range .TxOuts}}
+        <li style="white-space: nowrap;"><a href="/address/{{.Addr}}" class="hash">{{.Addr}}</a>: {{.Value |tobtc}}</li>
+        {{end}}
+        </ul>
+        </td>
+      </tr>
+      {{end}}
+  </tbody>
+</table>
+</div>
+{{end}}

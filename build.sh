@@ -9,8 +9,6 @@ go get btcplex
 go get btcplex-server
 go install btcplex-server
 
-rm ./tmp -rf
 rm $GOPATH/src/btcplex -rf
 rm $GOPATH/src/btcplex-server -rf
 export GOBIN=$OLD_GOBIN
-export OLD_GOBIN=

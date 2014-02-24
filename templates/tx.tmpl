@@ -1,0 +1,119 @@
+{{$unconfirmed := .TxUnconfirmed}}
+{{with .Tx}}
+<h2>Transaction <small class="mono">{{cutmiddle .Hash 15}}</small></h2>
+
+<dl class="dl-horizontal">
+  <dt>Hash</dt>
+  <dd class="hash">{{.Hash}}</dd>
+
+  {{if $unconfirmed}}
+
+  <dt>Confirmations</dt>
+  <dd class="text-danger"><span class="glyphicon glyphicon-warning-sign"></span> <strong>Unconfirmed transaction</strong></dd>
+
+  <dt>Time</dt>
+  <dd>{{.FirstSeenTime | formattime}} (<time datetime="{{.FirstSeenTime | formatiso}}">{{.FirstSeenTime | formattime}}</time>)</dd>
+
+  {{else}}
+
+  <dt>Block Hash</dt>
+  <dd class="hash"><a href="/block/{{.BlockHash}}">{{.BlockHash}}</a></dd>
+
+  <dt>Block Height</dt>
+  <dd><a href="/block/{{.BlockHash}}">{{.BlockHeight}}</a></dd>
+
+  <dt>Block Time</dt>
+  <dd>{{.BlockTime | formattime}} (<time datetime="{{.BlockTime | formatiso}}">{{.BlockTime | formattime}}</time>)</dd>
+
+  <dt>Confirmations</dt>
+  <dd>{{confirmation .BlockHeight}}</dd>
+
+  {{end}}
+
+  {{if .TxIns}}
+  <dt>Number of Input</dt>
+  <dd>{{.TxInCnt}}</dd>
+
+  <dt>Total Input</dt>
+  <dd>{{.TotalIn | tobtc}}</dd>
+  {{else}}
+
+  <dt>Reward</dt>
+  <dd>{{ . | generationmsg}}</dd>
+
+  {{end}}
+  <dt>Number of Output</dt>
+  <dd>{{.TxOutCnt}}</dd>
+
+  <dt>Total Output</dt>
+  <dd>{{.TotalOut | tobtc}}</dd>
+
+  <dt>Fee</dt>
+  <dd>{{. | computefee}}</dd>
+
+  <dt>Size</dt>
+  <dd>{{.Size |tokb}} KB</dd>
+
+  <dt class="text-muted">API</dt>
+  <dd><a class="text-muted" href="/api/v1/tx/{{.Hash}}">JSON</a></dd>
+
+</dl>
+
+<h3>Inputs</h3>
+
+{{if .TxIns}}
+<div class="table-responsive">
+<table class="table table-striped table-condensed">
+  <thead>
+    <tr>
+      <th>Index</th>
+      <th>Previous output</th>
+      <th>From</th>
+      <th>Amount</th>
+    </tr>
+  </thead>
+  <tbody>
+{{range $index, $txi := .TxIns}}
+<tr>
+<td>{{$index}}</td>
+<td class="hash"><a href="/tx/{{$txi.PrevOut.Hash}}#out{{$txi.PrevOut.Vout}}">{{$txi.PrevOut | formatprevout}}</a></td>
+<td class="hash"><a href="/address/{{$txi.PrevOut.Address}}" name="in{{$index}}">{{$txi.PrevOut.Address}}</a></td>
+<td>{{$txi.PrevOut.Value | tobtc}}</td>
+</tr>
+{{end}}
+  </tbody>
+</table>
+</div>
+{{else}}
+<p>Generation: {{ . | generationmsg}}</p>
+{{end}}
+<h3>Outputs</h3>
+
+<div class="table-responsive">
+<table class="table table-striped table-condensed">
+  <thead>
+    <tr>
+      <th>Index</th>
+      <th>To</th>
+      <th>Amount</th>
+      <th>Spent</th>
+    </tr>
+  </thead>
+{{range $index, $txo := .TxOuts}}
+<tr>
+<td>{{$index}}</td>
+<td><a href="/address/{{$txo.Addr}}" name="out{{$index}}" class="hash">{{$txo.Addr}}</a></td>
+<td>{{$txo.Value | tobtc}}</td>	
+<td>{{if $txo.Spent.Spent}}
+
+<a href="/tx/{{$txo.Spent.InputHash}}#in{{$txo.Spent.InputIndex}}">Spent at block {{$txo.Spent.BlockHeight}}</a>
+
+{{else}}
+Unspent
+{{end}}</td>
+</tr>
+{{end}}
+  </tbody>
+</table>
+</div>
+{{end}}

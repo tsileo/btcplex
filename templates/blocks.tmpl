@@ -1,0 +1,50 @@
+
+{{$fblock := index .Blocks 0}}
+{{$lblock := index .Blocks 29}}
+
+{{define "pagination"}}
+{{$fblock := index .Blocks 0}}
+{{$lblock := index .Blocks 29}}
+
+<ul class="pager">
+
+<li class="next{{if eq $fblock.Height .LastHeight}} disabled{{end}}"><a href="{{if eq $fblock.Height .LastHeight}}{{else}}/blocks/{{add $fblock.Height 30}}{{end}}" class="pull-right">Next</a></li>
+
+<li class="previous"><a href="/blocks/{{sub $lblock.Height 1}}" class="pull-left">Previous</a></li>
+</ul>
+{{end}}
+
+<h2>Blocks #{{$fblock.Height}} to #{{$lblock.Height}}</h2>
+
+{{template "pagination" .}}
+
+{{with .Blocks}}
+<div class="table-responsive">
+<table class="table table-striped table-condensed">
+<thead>
+<tr>
+	<th>Height</th>
+	<th>Hash</th>
+	<th>Time</th>
+	<th>Transactions</th>
+	<th>Total BTC</th>
+	<th>Size (kB)</th>
+</tr>
+</thead>
+<tbody>
+{{range .}}
+<tr>
+	<td>{{.Height}}</td>
+	<td><a href="/block/{{.Hash}}" class="hash">{{.Hash}}</a></td>
+	<td>{{.BlockTime | formattime}} (<time datetime="{{.BlockTime | formatiso}}">{{.BlockTime | formattime}}</time>)</td>
+	<td>{{.TxCnt}}</td>
+	<td>{{.TotalBTC | tobtc}}</td>
+	<td>{{.Size | tokb}}</td>
+</tr>
+{{end}}
+</tbody>
+</table>
+</div>
+{{end}}
+
+{{template "pagination" .}}

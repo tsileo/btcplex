@@ -1,0 +1,58 @@
+<h2><span id="unconfirmedcnt"></span> Unconfirmed Transactions</h2>
+
+<p class="lead">50 latest transactions waiting to be included in a block, <strong>updated in real time</strong>.</p>
+
+<div class="well" id="waiting">
+  <p><strong>Please wait while loading...</strong></p>
+</div>
+
+<div id="txs">
+      {{range .Txs}}
+<div class="panel panel-default">
+  <!-- Default panel contents -->
+  <div class="panel-heading hash">{{.Hash}}</div>
+  <div class="panel-body">
+    <p>{{.FirstSeenTime | formattime}} (<time datetime="{{.FirstSeenTime | formatiso}}">{{.FirstSeenTime | formattime}}</time>)</p>
+  </div>
+
+<div class="table-responsive">
+<table class="table table-striped table-condensed">
+  <thead>
+    <tr>
+      <th>Transaction</th>
+      <th>Fee</th>
+      <th>Size (kB)</th>
+      <th>From</th>
+      <th>To</th>
+    </tr>
+  </thead>
+  <tbody>
+      <tr>
+        <td style="vertical-align:middle"><a href="/tx/{{.Hash}}" class="hash">{{cutmiddle .Hash 15}}</a></td>
+        <td style="vertical-align:middle">{{. | computefee}}</td>
+        <td style="vertical-align:middle">{{.Size | tokb}}</td>
+        <td style="vertical-align:middle">
+        <ul class="list-unstyled">
+        {{if .TxIns}}
+        {{range .TxIns}}
+        <li style="white-space: nowrap;"><a href="/address/{{.PrevOut.Address}}" class="hash">{{.PrevOut.Address}}</a>: {{.PrevOut.Value |tobtc}}</li>
+        {{end}}
+        {{else}}
+        <li style="white-space: nowrap;">Generation: {{. | generationmsg}}</li>
+        {{end}}
+        </ul></td>
+        
+        <td style="vertical-align:middle">
+        <ul class="list-unstyled">
+        {{range .TxOuts}}
+        <li style="white-space: nowrap;"><a href="/address/{{.Addr}}" class="hash">{{.Addr}}</a>: {{.Value |tobtc}}</li>
+        {{end}}
+        </ul>
+        </td>
+      </tr>
+  </tbody>
+</table>
+</div>
+</div>
+      {{end}}
+</div>
