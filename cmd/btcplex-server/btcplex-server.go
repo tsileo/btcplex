@@ -17,9 +17,9 @@ import (
     "github.com/codegangsta/martini"
     "github.com/codegangsta/martini-contrib/render"
     "github.com/codegangsta/martini-contrib/binding"
-    "github.com/pmylund/go-cache"
     "github.com/garyburd/redigo/redis"
     "github.com/grafov/bcast"
+    "github.com/docopt/docopt.go"
 
     "btcplex"
 )
@@ -115,23 +115,46 @@ func N(n int) []struct{} {
 }
 
 func main() {
-    log.Println("Starting btcplex-server")
-    conf, conferr:= btcplex.LoadConfig("./config.json")
-    if conferr != nil {
-        log.Fatalf("Can't load config file: %v", conferr)
+    var err error
+    var latestheight int
+    usage := `BTCplex webapp/API server.
+
+Usage:
+  btcplex-server [--config=<path>]
+  btcplex-server -h | --help
+
+Options:
+  -h --help         Show this screen.
+  -c <path>, --config <path>    Path to config file [default: config.json].
+`
+    arguments, _ := docopt.Parse(usage, nil, true, "btcplex-server", false)
+
+    confFile := "config.json"
+    if arguments["--config"] != nil {
+        confFile = arguments["--config"].(string)
     }
 
-    var latestheight int
-    
-    c := cache.New(120*time.Minute, 30*time.Second)
+    log.Println("Starting btcplex-server")
+
+    conf, err:= btcplex.LoadConfig(confFile)
+    if err != nil {
+        log.Fatalf("Can't load config file: %v\n", err)
+    }
 
     // Used for pub/sub in the webapp and data like latest processed height
-    pool, _ := btcplex.GetRedis(conf)
+    pool, err := btcplex.GetRedis(conf)
+    if err != nil {
+        log.Fatalf("Can't connect to Redis: %v\n", err)
+    }
+
     // Due to args injection I can't use two *redis.Pool with maritini
     rediswrapper := new(RedisWrapper)
     rediswrapper.Pool = pool
     
-    ssdb, _ := btcplex.GetSSDB(conf)
+    ssdb, err := btcplex.GetSSDB(conf)
+    if err != nil {
+        log.Fatalf("Can't connect to SSDB: %v\n", err)
+    }
 
     // Setup some pubsub:
 
@@ -146,7 +169,11 @@ func main() {
         }
     }(pool, &utxscnt)
 
-    price, _ := btcplex.GetLastBitcoinPrice()
+    price, err := btcplex.GetLastBitcoinPrice()
+    if err != nil {
+        log.Printf("Error fetching Bitcoin price: %v\n", err)
+    }
+
     // PubSub channel for the latest price
     pricegroup := bcast.NewGroup()
     go pricegroup.Broadcasting(0)
@@ -240,7 +267,6 @@ func main() {
     conn.Close()
 
     m := martini.Classic()
-    m.Map(c)
     m.Map(rediswrapper)
     m.Map(ssdb)
 
@@ -285,7 +311,7 @@ func main() {
         return "User-agent: *\nDisallow: /api"
     })
 
-    m.Get("/", func(r render.Render, c *cache.Cache, db *redis.Pool) {
+    m.Get("/", func(r render.Render, db *redis.Pool) {
         pm := new(pageMeta)
         pm.Price = price
         blocks, _ := btcplex.GetLastXBlocks(db, uint(latestheight), uint(latestheight - 30))

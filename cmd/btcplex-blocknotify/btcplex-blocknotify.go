@@ -14,15 +14,15 @@ func main() {
 	usage := `Callback executed when bitcoind best block changes.
 
 Usage:
-  newblock [--config=<path>] <hash>
-  newblock -h | --help
+  btcplex-blocknotify [--config=<path>] <hash>
+  btcplex-blocknotify -h | --help
 
 Options:
   -h --help     	Show this screen.
   -c <path>, --config <path>	Path to config file [default: config.json].
 `
 
-	arguments, _ := docopt.Parse(usage, nil, true, "newblock", false)
+	arguments, _ := docopt.Parse(usage, nil, true, "btcplex-blocknotify", false)
 
 	confFile := "config.json"
 	if arguments["--config"] != nil {
