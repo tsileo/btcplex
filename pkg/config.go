@@ -14,6 +14,7 @@ type Config struct {
 	LevelDbPath        string `json:"leveldb_path"`
 	AppPort            uint   `json:"app_port"`
 	AppApiRateLimited  bool   `json:"app_api_rate_limited"`
+	AppTemplatesPath   string `json:"app_templates_path"`
 }
 
 // Load configuration from json file

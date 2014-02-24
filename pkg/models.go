@@ -110,6 +110,21 @@ func GetBlockByHash(rpool *redis.Pool, hash string) (block *Block, err error) {
     return
 }
 
+// Get a block by its hash along with its full transactions
+func GetBlockCachedByHash(rpool *redis.Pool, hash string) (block *Block, err error) {
+    c := rpool.Get()
+    defer c.Close()
+    blockjson, err := redis.String(c.Do("GET", fmt.Sprintf("block:%v:cached", hash)))
+    if err != nil {
+        return
+    }
+    block = new(Block)
+    err = json.Unmarshal([]byte(blockjson), block)
+    return
+}
+
+// TODO UpdateTxoSpent
+
 func (block *Block) FetchTxs(rpool *redis.Pool) (err error) {
     c := rpool.Get()
     defer c.Close()

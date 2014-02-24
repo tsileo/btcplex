@@ -1,8 +1,8 @@
 package main
+
 import (
     "log"
     "fmt"
-    _ "github.com/jmhodges/levigo"
     "net/http"
     "strconv"
     "bytes"
@@ -12,24 +12,25 @@ import (
     "math"
     "io"
     "io/ioutil"
+    "html/template"
+
     "github.com/codegangsta/martini"
     "github.com/codegangsta/martini-contrib/render"
     "github.com/codegangsta/martini-contrib/binding"
     "github.com/pmylund/go-cache"
-    "btcplex"
-    "html/template"
     "github.com/garyburd/redigo/redis"
     "github.com/grafov/bcast"
-    _ "github.com/deckarep/golang-set"
+
+    "btcplex"
 )
 
 // Martini form for the search input
-type SearchForm struct {
+type searchForm struct {
     Query string `form:"q"`
 }
 
 // Struct holding page meta data, like meta tags, and some template variables
-type PageMeta struct {
+type pageMeta struct {
     Title string
     Description string
     Menu string
@@ -43,10 +44,10 @@ type PageMeta struct {
     CurrentHeight uint
     Error string
     Price float64
-    PaginationData *PaginationData
+    paginationData *paginationData
 }
 
-type PaginationData struct {
+type paginationData struct {
     CurrentPage int
     MaxPage int
     Next int
@@ -82,7 +83,7 @@ func rateLimited(rediswrapper *RedisWrapper, ip string) (bool, int, int) {
     }
 }
 
-func BcastToRedisPubSub(pool *redis.Pool, psgroup *bcast.Group, redischannel string) {
+func bcastToRedisPubSub(pool *redis.Pool, psgroup *bcast.Group, redischannel string) {
     conn := pool.Get()
     defer conn.Close()
     psc := redis.PubSubConn{Conn: conn}
@@ -97,16 +98,16 @@ func BcastToRedisPubSub(pool *redis.Pool, psgroup *bcast.Group, redischannel str
     }
 }
 
-func AddHATEOAS(links map[string]map[string]string, key string, link string) map[string]map[string]string {
+func addHATEOAS(links map[string]map[string]string, key string, link string) map[string]map[string]string {
     newlink := map[string]string{}
     newlink["href"] = link
     links[key] = newlink
     return links
 }
 
-func InitHATEOAS(links map[string]map[string]string, req *http.Request) map[string]map[string]string {
+func initHATEOAS(links map[string]map[string]string, req *http.Request) map[string]map[string]string {
     links = map[string]map[string]string{}
-    return AddHATEOAS(links, "self", req.URL.String())
+    return addHATEOAS(links, "self", req.URL.String())
 }
 
 func N(n int) []struct{} {
@@ -167,21 +168,21 @@ func main() {
     // PubSub channel for the current height
     heightgroup := bcast.NewGroup()
     go heightgroup.Broadcasting(0)
-    go BcastToRedisPubSub(pool, heightgroup, "btcplex:height")
+    go bcastToRedisPubSub(pool, heightgroup, "btcplex:height")
 
     // PubSub channel for blocknotify bitcoind RPC like
     blocknotifygroup := bcast.NewGroup()
     go blocknotifygroup.Broadcasting(0)
-    go BcastToRedisPubSub(pool, blocknotifygroup, "btcplex:blocknotify")
+    go bcastToRedisPubSub(pool, blocknotifygroup, "btcplex:blocknotify")
     
     // PubSub channel for unconfirmed txs / rawmemorypool
     utxgroup := bcast.NewGroup()
     go utxgroup.Broadcasting(0)
-    go BcastToRedisPubSub(pool, utxgroup, "btcplex:utxs")
+    go bcastToRedisPubSub(pool, utxgroup, "btcplex:utxs")
     // TODO Ticker for utxs count => events_unconfirmed
 
     // Go template helper
-    AppHelpers := template.FuncMap{
+    appHelpers := template.FuncMap{
         "cut": func(addr string, length int) string {
             return fmt.Sprintf("%v...", addr[:length])
         },
@@ -242,9 +243,15 @@ func main() {
     m.Map(c)
     m.Map(rediswrapper)
     m.Map(ssdb)
+
+    tmpldir := "templates"
+    if conf.AppTemplatesPath != "" {
+        tmpldir = conf.AppTemplatesPath
+    }
     m.Use(render.Renderer(render.Options{
+        Directory: tmpldir,
         Layout: "layout",
-        Funcs: []template.FuncMap{AppHelpers},
+        Funcs: []template.FuncMap{appHelpers},
     }))
 
     // We rate limit the API if enabled in the config
@@ -279,7 +286,7 @@ func main() {
     })
 
     m.Get("/", func(r render.Render, c *cache.Cache, db *redis.Pool) {
-        pm := new(PageMeta)
+        pm := new(pageMeta)
         pm.Price = price
         blocks, _ := btcplex.GetLastXBlocks(db, uint(latestheight), uint(latestheight - 30))
         pm.Blocks = &blocks
@@ -291,7 +298,7 @@ func main() {
     })
 
     m.Get("/blocks/:currentheight", func(params martini.Params, r render.Render, db *redis.Pool) {
-        pm := new(PageMeta)
+        pm := new(pageMeta)
         pm.Price = price
         currentheight, _ := strconv.ParseUint(params["currentheight"], 10, 0)
         blocks, _ := btcplex.GetLastXBlocks(db, uint(currentheight), uint(currentheight - 30))
@@ -304,11 +311,11 @@ func main() {
     })
 
     m.Get("/block/:hash", func(params martini.Params, r render.Render, db *redis.Pool) {
-        pm := new(PageMeta)
+        pm := new(pageMeta)
         pm.Price = price
         pm.LastHeight = uint(latestheight)
-        block, _ := btcplex.GetBlockByHash(db, params["hash"])
-        block.FetchTxs(db)
+        block, _ := btcplex.GetBlockCachedByHash(db, params["hash"])
+        //block.FetchTxs(db)
         pm.Block = block
         pm.Title = fmt.Sprintf("Bitcoin block #%v", block.Height)
         pm.Description = fmt.Sprintf("Bitcoin block #%v summary and related transactions", block.Height)
@@ -316,21 +323,21 @@ func main() {
     })
 
     m.Get("/api/v1/block/:hash", func(params martini.Params, r render.Render, db *redis.Pool, req *http.Request) {
-        block, _ := btcplex.GetBlockByHash(db, params["hash"])
-        block.FetchTxs(db)
-        block.Links = InitHATEOAS(block.Links, req)
+        block, _ := btcplex.GetBlockCachedByHash(db, params["hash"])
+        //block.FetchTxs(db)
+        block.Links = initHATEOAS(block.Links, req)
         if block.Parent != "" {
-            block.Links = AddHATEOAS(block.Links, "previous_block", fmt.Sprintf("/api/v1/block/%v", block.Parent))    
+            block.Links = addHATEOAS(block.Links, "previous_block", fmt.Sprintf("/api/v1/block/%v", block.Parent))    
         }
         if block.Next != "" {
-            block.Links = AddHATEOAS(block.Links, "next_block", fmt.Sprintf("/api/v1/block/%v", block.Next))    
+            block.Links = addHATEOAS(block.Links, "next_block", fmt.Sprintf("/api/v1/block/%v", block.Next))    
         }
         r.JSON(200, block)
     })
     
     m.Get("/unconfirmed-transactions", func(params martini.Params, r render.Render, db *redis.Pool, rdb *RedisWrapper) {
         //rpool := rdb.Pool
-        pm := new(PageMeta)
+        pm := new(pageMeta)
         pm.Price = price
         pm.LastHeight = uint(latestheight)
         pm.Menu = "utxs"
@@ -344,7 +351,7 @@ func main() {
     m.Get("/tx/:hash", func(params martini.Params, r render.Render, db *redis.Pool, rdb *RedisWrapper) {
         var tx *btcplex.Tx
         rpool := rdb.Pool
-        pm := new(PageMeta)
+        pm := new(pageMeta)
         pm.Price = price
         pm.LastHeight = uint(latestheight)
         isutx, _ := btcplex.IsUnconfirmedTx(rpool, params["hash"])
@@ -370,19 +377,19 @@ func main() {
             tx, _ = btcplex.GetTx(db, params["hash"])
             tx.Build(db)
         }
-        tx.Links = InitHATEOAS(tx.Links, req)
+        tx.Links = initHATEOAS(tx.Links, req)
         if tx.BlockHash != "" {
-            tx.Links = AddHATEOAS(tx.Links, "block", fmt.Sprintf("/api/v1/block/%v", tx.BlockHash))
+            tx.Links = addHATEOAS(tx.Links, "block", fmt.Sprintf("/api/v1/block/%v", tx.BlockHash))
         }
         r.JSON(200, tx)
     })
 
     m.Get("/address/:address", func(params martini.Params, r render.Render, db *redis.Pool, req *http.Request) {
         txperpage := 50
-        pm := new(PageMeta)
+        pm := new(pageMeta)
         pm.Price = price
         pm.LastHeight = uint(latestheight)
-        pm.PaginationData = new(PaginationData)
+        pm.paginationData = new(paginationData)
         pm.Title = fmt.Sprintf("Bitcoin address %v", params["address"])
         pm.Description = fmt.Sprintf("Transactions and summary for the Bitcoin address %v.", params["address"])
         // AddressData
@@ -390,24 +397,24 @@ func main() {
         pm.AddressData = addressdata
         // Pagination
         d := float64(addressdata.TxCnt) / float64(txperpage)
-        pm.PaginationData.MaxPage = int(math.Ceil(d))
+        pm.paginationData.MaxPage = int(math.Ceil(d))
         currentPage := req.URL.Query().Get("page")
         if currentPage == "" {
             currentPage = "1"
         }
-        pm.PaginationData.CurrentPage, _ = strconv.Atoi(currentPage)
-        pm.PaginationData.Pages = N(pm.PaginationData.MaxPage)
-        pm.PaginationData.Next = 0
-        pm.PaginationData.Prev = 0
-        if pm.PaginationData.CurrentPage > 1 {
-            pm.PaginationData.Prev = pm.PaginationData.CurrentPage - 1
+        pm.paginationData.CurrentPage, _ = strconv.Atoi(currentPage)
+        pm.paginationData.Pages = N(pm.paginationData.MaxPage)
+        pm.paginationData.Next = 0
+        pm.paginationData.Prev = 0
+        if pm.paginationData.CurrentPage > 1 {
+            pm.paginationData.Prev = pm.paginationData.CurrentPage - 1
         }
-        if pm.PaginationData.CurrentPage < pm.PaginationData.MaxPage {
-            pm.PaginationData.Next = pm.PaginationData.CurrentPage + 1
+        if pm.paginationData.CurrentPage < pm.paginationData.MaxPage {
+            pm.paginationData.Next = pm.paginationData.CurrentPage + 1
         }
-        fmt.Printf("%+v\n", pm.PaginationData)
+        fmt.Printf("%+v\n", pm.paginationData)
         // Fetch txs given the pagination
-        addressdata.FetchTxs(db, txperpage * (pm.PaginationData.CurrentPage - 1), txperpage * pm.PaginationData.CurrentPage)
+        addressdata.FetchTxs(db, txperpage * (pm.paginationData.CurrentPage - 1), txperpage * pm.paginationData.CurrentPage)
         r.HTML(200, "address", pm)
     })
     m.Get("/api/v1/address/:address", func(params martini.Params, r render.Render, db *redis.Pool, req *http.Request) {
@@ -420,21 +427,21 @@ func main() {
         }
         currentPage, _ := strconv.Atoi(currentPageStr)
         // HATEOS section
-        addressdata.Links = InitHATEOAS(addressdata.Links, req)
+        addressdata.Links = initHATEOAS(addressdata.Links, req)
         pageurl := "/api/v1/address/%v?page=%v"
         if currentPage < lastPage {
-            addressdata.Links = AddHATEOAS(addressdata.Links, "last", fmt.Sprintf(pageurl, params["address"], lastPage))
-            addressdata.Links = AddHATEOAS(addressdata.Links, "next", fmt.Sprintf(pageurl, params["address"], currentPage + 1))
+            addressdata.Links = addHATEOAS(addressdata.Links, "last", fmt.Sprintf(pageurl, params["address"], lastPage))
+            addressdata.Links = addHATEOAS(addressdata.Links, "next", fmt.Sprintf(pageurl, params["address"], currentPage + 1))
         }
         if currentPage > 1 {
-            addressdata.Links = AddHATEOAS(addressdata.Links, "previous", fmt.Sprintf(pageurl, params["address"], currentPage - 1))
+            addressdata.Links = addHATEOAS(addressdata.Links, "previous", fmt.Sprintf(pageurl, params["address"], currentPage - 1))
         }
         addressdata.FetchTxs(db, txperpage * (currentPage - 1), txperpage * currentPage)
         r.JSON(200, addressdata)
     })
 
     m.Get("/docs/api", func(r render.Render) {
-        pm := new(PageMeta)
+        pm := new(pageMeta)
         pm.Price = price
         pm.LastHeight = uint(latestheight)
         pm.Title = "API Documentation"
@@ -444,7 +451,7 @@ func main() {
     })
 
     m.Get("/docs/query_api", func(r render.Render) {
-        pm := new(PageMeta)
+        pm := new(pageMeta)
         pm.Price = price
         pm.LastHeight = uint(latestheight)
         pm.Title = "Query API Documentation"
@@ -455,7 +462,7 @@ func main() {
     })
 
     m.Get("/docs/rest_api", func(r render.Render) {
-        pm := new(PageMeta)
+        pm := new(pageMeta)
         pm.Price = price
         pm.LastHeight = uint(latestheight)
         pm.Title = "REST API Documentation"
@@ -466,7 +473,7 @@ func main() {
     })
 
     m.Get("/docs/sse_api", func(r render.Render) {
-        pm := new(PageMeta)
+        pm := new(pageMeta)
         pm.Price = price
         pm.LastHeight = uint(latestheight)
         pm.Title = "Server-Sent Events API Documentation"
@@ -477,7 +484,7 @@ func main() {
     })
 
     m.Get("/about", func(r render.Render) {
-        pm := new(PageMeta)
+        pm := new(pageMeta)
         pm.Price = price
         pm.LastHeight = uint(latestheight)
         pm.Title = "About"
@@ -486,9 +493,9 @@ func main() {
         r.HTML(200, "about", pm)
     })
 
-    m.Post("/search", binding.Form(SearchForm{}), binding.ErrorHandler, func(search SearchForm, r render.Render, db *redis.Pool, rdb *RedisWrapper) {
+    m.Post("/search", binding.Form(searchForm{}), binding.ErrorHandler, func(search searchForm, r render.Render, db *redis.Pool, rdb *RedisWrapper) {
         rpool := rdb.Pool
-        pm := new(PageMeta)
+        pm := new(pageMeta)
         pm.Price = price
         // Check if the query isa block height
         isblockheight, hash := btcplex.IsBlockHeight(db, search.Query)
@@ -649,8 +656,8 @@ func main() {
                         buf := bytes.NewBufferString("")
                         utx := new(btcplex.Tx)
                         json.Unmarshal([]byte(ls.(string)), utx)
-                        t := template.New("").Funcs(AppHelpers)
-                        utxtmpl, _ := ioutil.ReadFile("templates/utx.tmpl")
+                        t := template.New("").Funcs(appHelpers)
+                        utxtmpl, _ := ioutil.ReadFile(fmt.Sprintf("%v/utx.tmpl", tmpldir))
                         t, err := t.Parse(string(utxtmpl))
                         if err != nil {
                             log.Printf("ERR:%v", err)
