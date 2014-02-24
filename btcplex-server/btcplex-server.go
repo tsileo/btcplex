@@ -63,7 +63,8 @@ const (
     ratelimitcnt = 3600
 )
 
-func RateLimited(rediswrapper *RedisWrapper, ip string) (bool, int, int) {
+// Used to rate-limit the API
+func rateLimited(rediswrapper *RedisWrapper, ip string) (bool, int, int) {
     conn := rediswrapper.Pool.Get()
     defer conn.Close()
     reset := int(time.Now().UTC().Unix() / ratelimitwindow * ratelimitwindow + ratelimitwindow)
@@ -113,18 +114,36 @@ func N(n int) []struct{} {
 }
 
 func main() {
-    log.Println("Starting")
-    conf, _ := btcplex.LoadConfig("./config.json")
+    log.Println("Starting btcplex-server")
+    conf, conferr:= btcplex.LoadConfig("./config.json")
+    if conferr != nil {
+        log.Fatalf("Can't load config file: %v", conferr)
+    }
+
     var latestheight int
-    // Setting up cache
+    
     c := cache.New(120*time.Minute, 30*time.Second)
 
-    // Redis connect
     // Used for pub/sub in the webapp and data like latest processed height
     pool, _ := btcplex.GetRedis(conf)
+    // Due to args injection I can't use two *redis.Pool with maritini
     rediswrapper := new(RedisWrapper)
     rediswrapper.Pool = pool
+    
     ssdb, _ := btcplex.GetSSDB(conf)
+
+    // Setup some pubsub:
+
+    // Compute the unconfirmed transaction count in a ticker
+    utxscnt := 0
+    utxscntticker := time.NewTicker(500 * time.Millisecond)
+    go func(pool *redis.Pool, utxscnt *int) {
+        c := pool.Get()
+        defer c.Close()
+        for _ = range utxscntticker.C {
+            *utxscnt, _ = redis.Int(c.Do("ZCARD", "btcplex:rawmempool"))
+        }
+    }(pool, &utxscnt)
 
     price, _ := btcplex.GetLastBitcoinPrice()
     // PubSub channel for the latest price
@@ -145,16 +164,6 @@ func main() {
         }
     }(pricegroup)
 
-    utxscnt := 0
-    utxscntticker := time.NewTicker(500 * time.Millisecond)
-    go func(pool *redis.Pool, utxscnt *int) {
-        c := pool.Get()
-        defer c.Close()
-        for _ = range utxscntticker.C {
-            *utxscnt, _ = redis.Int(c.Do("ZCARD", "btcplex:rawmempool"))
-        }
-    }(pool, &utxscnt)
-
     // PubSub channel for the current height
     heightgroup := bcast.NewGroup()
     go heightgroup.Broadcasting(0)
@@ -171,8 +180,7 @@ func main() {
     go BcastToRedisPubSub(pool, utxgroup, "btcplex:utxs")
     // TODO Ticker for utxs count => events_unconfirmed
 
-    // TODO(tsileo) INCR for live SSE
-
+    // Go template helper
     AppHelpers := template.FuncMap{
         "cut": func(addr string, length int) string {
             return fmt.Sprintf("%v...", addr[:length])
@@ -249,7 +257,7 @@ func main() {
             }
             log.Printf("R:%v\nip:%+v\n", time.Now(), remoteIP)
             if strings.Contains(req.RequestURI, "/api/v") {
-                ratelimited, cnt, reset := RateLimited(rediswrapper, remoteIP)
+                ratelimited, cnt, reset := rateLimited(rediswrapper, remoteIP)
                 // Set X-RateLimit-* Header
                 res.Header().Set("X-RateLimit-Limit", strconv.Itoa(ratelimitcnt))
                 res.Header().Set("X-RateLimit-Remaining", strconv.Itoa(ratelimitcnt - cnt))
@@ -265,8 +273,9 @@ func main() {
         })
     }
 
+    // Don't want Google to crawl API
     m.Get("/robots.txt", func() string {
-        return "User-agent: *\nDisallow: /api/v1"
+        return "User-agent: *\nDisallow: /api"
     })
 
     m.Get("/", func(r render.Render, c *cache.Cache, db *redis.Pool) {
@@ -424,7 +433,7 @@ func main() {
         r.JSON(200, addressdata)
     })
 
-    m.Get("/api", func(r render.Render) {
+    m.Get("/docs/api", func(r render.Render) {
         pm := new(PageMeta)
         pm.Price = price
         pm.LastHeight = uint(latestheight)
@@ -676,5 +685,6 @@ func main() {
         }
     })
 
+    log.Printf("Listening on port: %v\n", conf.AppPort)
     http.ListenAndServe(fmt.Sprintf(":%v", conf.AppPort), m)
 }
