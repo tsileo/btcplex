@@ -18,13 +18,13 @@ Build btcplex database takes **1 week and few days** on a small server (dual cor
 
 Assuming you have a working Go workspace (and $GOPATH already set), Redis and SSDB already installed:
 
-$ git clone https://github.com/tsileo/btcplex.git
-$ cd btcplex
-$ ./build.sh
-$ cp -r config.sample.json config.json
-$ vim config.json
-$ nohup ./bin/btcplex-import > import.log&
-$ ./bin/btcplex-server
+    $ git clone https://github.com/tsileo/btcplex.git
+    $ cd btcplex
+    $ ./build.sh
+    $ cp -r config.sample.json config.json
+    $ vim config.json
+    $ nohup ./bin/btcplex-import > import.log&
+    $ ./bin/btcplex-server
 
 
 ## Roadmap
