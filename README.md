@@ -56,7 +56,7 @@ You can ping me @trucsdedev/contact@btcplex.com/thomas.sileo@gmail.com if you ha
 BTC: 16obt7HXb3PmyDb1wZMA2X7HYPUPHp45GB
 
 
-## License
+## License (MIT)
 
 Copyright (c) 2014 Thomas Sileo
 
