@@ -49,7 +49,8 @@ Some features that are on my TODO list:
 - An official Python module to interact with the API and offer a reliable way to track address
 - An official JS lib to interact with the API
 - A Watch-only addresses page
-- Live notification on a unconfirmed transaction page when it actually get included in a block 
+- Live notification on a unconfirmed transaction page when it actually get included in a block
+- Docker build
 - ... (don't hesitate to request features!)
 
 ## Contribution

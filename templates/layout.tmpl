@@ -157,17 +157,17 @@
       };
 
 
-    var source = new EventSource('/events');
-    source.onmessage = function(e) {
-      var data = JSON.parse(e.data);
-      if (data.t == "price") {
-        $.jGrowl("Price updated!");
-        $('#price').html(data.price);
-      };
-      if (data.t == "height") {
-        $.jGrowl("New block found!");
-      };
-    };
+    //var source = new EventSource('/events');
+    //source.onmessage = function(e) {
+    //  var data = JSON.parse(e.data);
+    //  if (data.t == "price") {
+    //    $.jGrowl("Price updated!");
+    //    $('#price').html(data.price);
+    //  };
+    //  if (data.t == "height") {
+    //    $.jGrowl("New block found!");
+    //  };
+    //};
 
     if ($("#unconfirmedcnt").length == 1) {
       var source2 = new EventSource('/events_unconfirmed');

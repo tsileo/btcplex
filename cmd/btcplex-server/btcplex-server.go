@@ -170,34 +170,6 @@ Options:
 		}
 	}(pool, &utxscnt)
 
-	price, err := btcplex.GetLastBitcoinPrice()
-	if err != nil {
-		log.Printf("Error fetching Bitcoin price: %v\n", err)
-	}
-
-	// PubSub channel for the latest price
-	pricegroup := bcast.NewGroup()
-	go pricegroup.Broadcasting(0)
-
-	ticker := time.NewTicker(5 * time.Minute)
-	go func(pricegroup *bcast.Group) {
-		for _ = range ticker.C {
-			cprice, priceerr := btcplex.GetLastBitcoinPrice()
-			if priceerr == nil {
-				price = cprice
-				log.Printf("New price: %v\n", cprice)
-				price1 := pricegroup.Join()
-				price1.Send(fmt.Sprintf("{\"t\": \"price\", \"price\": %v}", cprice))
-				price1.Close()
-			}
-		}
-	}(pricegroup)
-
-	// PubSub channel for the current height
-	heightgroup := bcast.NewGroup()
-	go heightgroup.Broadcasting(0)
-	go bcastToRedisPubSub(pool, heightgroup, "btcplex:height")
-
 	// PubSub channel for blocknotify bitcoind RPC like
 	blocknotifygroup := bcast.NewGroup()
 	go blocknotifygroup.Broadcasting(0)
@@ -286,7 +258,7 @@ Options:
 			remoteIP := strings.Split(req.RemoteAddr, ":")[0]
 			_, xforwardedfor := req.Header["X-Forwarded-For"]
 			if xforwardedfor {
-				remoteIP = req.Header["X-Forwarded-For"][0]
+				remoteIP = req.Header["X-Forwarded-For"][1]
 			}
 			log.Printf("R:%v\nip:%+v\n", time.Now(), remoteIP)
 			if strings.Contains(req.RequestURI, "/api/v") {
@@ -313,7 +285,6 @@ Options:
 
 	m.Get("/", func(r render.Render, db *redis.Pool) {
 		pm := new(pageMeta)
-		pm.Price = price
 		blocks, _ := btcplex.GetLastXBlocks(db, uint(latestheight), uint(latestheight-30))
 		pm.Blocks = &blocks
 		pm.Title = "Latest Bitcoin blocks"
@@ -326,7 +297,6 @@ Options:
 
 	m.Get("/blocks/:currentheight", func(params martini.Params, r render.Render, db *redis.Pool) {
 		pm := new(pageMeta)
-		pm.Price = price
 		currentheight, _ := strconv.ParseUint(params["currentheight"], 10, 0)
 		blocks, _ := btcplex.GetLastXBlocks(db, uint(currentheight), uint(currentheight-30))
 		pm.Blocks = &blocks
@@ -340,7 +310,6 @@ Options:
 
 	m.Get("/block/:hash", func(params martini.Params, r render.Render, db *redis.Pool) {
 		pm := new(pageMeta)
-		pm.Price = price
 		pm.LastHeight = uint(latestheight)
 		block, _ := btcplex.GetBlockCachedByHash(db, params["hash"])
 		block.FetchMeta(db)
@@ -367,7 +336,6 @@ Options:
 	m.Get("/unconfirmed-transactions", func(params martini.Params, r render.Render, db *redis.Pool, rdb *RedisWrapper) {
 		//rpool := rdb.Pool
 		pm := new(pageMeta)
-		pm.Price = price
 		pm.LastHeight = uint(latestheight)
 		pm.Menu = "utxs"
 		pm.Title = "Unconfirmed transactions"
@@ -382,7 +350,6 @@ Options:
 		var tx *btcplex.Tx
 		rpool := rdb.Pool
 		pm := new(pageMeta)
-		pm.Price = price
 		pm.LastHeight = uint(latestheight)
 		isutx, _ := btcplex.IsUnconfirmedTx(rpool, params["hash"])
 		if isutx {
@@ -418,7 +385,6 @@ Options:
 	m.Get("/address/:address", func(params martini.Params, r render.Render, db *redis.Pool, req *http.Request) {
 		txperpage := 50
 		pm := new(pageMeta)
-		pm.Price = price
 		pm.LastHeight = uint(latestheight)
 		pm.PaginationData = new(PaginationData)
 		pm.Title = fmt.Sprintf("Bitcoin address %v", params["address"])
@@ -473,7 +439,6 @@ Options:
 
 	m.Get("/docs/api", func(r render.Render) {
 		pm := new(pageMeta)
-		pm.Price = price
 		pm.LastHeight = uint(latestheight)
 		pm.Title = "API Documentation"
 		pm.Description = "BTCPlex provides JSON API for developers to retrieve Bitcoin block chain data pragmatically"
@@ -484,7 +449,6 @@ Options:
 
 	m.Get("/docs/query_api", func(r render.Render) {
 		pm := new(pageMeta)
-		pm.Price = price
 		pm.LastHeight = uint(latestheight)
 		pm.Title = "Query API Documentation"
 		pm.Description = "BTCPlex provides JSON API for developers to retrieve Bitcoin block chain data pragmatically"
@@ -496,7 +460,6 @@ Options:
 
 	m.Get("/docs/rest_api", func(r render.Render) {
 		pm := new(pageMeta)
-		pm.Price = price
 		pm.LastHeight = uint(latestheight)
 		pm.Title = "REST API Documentation"
 		pm.Description = "BTCPlex provides JSON API for developers to retrieve Bitcoin block chain data pragmatically"
@@ -508,7 +471,6 @@ Options:
 
 	m.Get("/docs/sse_api", func(r render.Render) {
 		pm := new(pageMeta)
-		pm.Price = price
 		pm.LastHeight = uint(latestheight)
 		pm.Title = "Server-Sent Events API Documentation"
 		pm.Description = "BTCPlex provides JSON API for developers to retrieve Bitcoin block chain data pragmatically"
@@ -520,7 +482,6 @@ Options:
 
 	m.Get("/about", func(r render.Render) {
 		pm := new(pageMeta)
-		pm.Price = price
 		pm.LastHeight = uint(latestheight)
 		pm.Title = "About"
 		pm.Description = "Learn more about BTCPlex, an open source Bitcoin block chain explorer with JSON API"
@@ -532,7 +493,6 @@ Options:
 	m.Post("/search", binding.Form(searchForm{}), binding.ErrorHandler, func(search searchForm, r render.Render, db *redis.Pool, rdb *RedisWrapper) {
 		rpool := rdb.Pool
 		pm := new(pageMeta)
-		pm.Price = price
 		// Check if the query isa block height
 		isblockheight, hash := btcplex.IsBlockHeight(db, search.Query)
 		if isblockheight && hash != "" {
@@ -637,26 +597,15 @@ Options:
 		notifier := w.(http.CloseNotifier).CloseNotify()
 		timer := time.NewTimer(time.Second * 900)
 
-		f, _ := w.(http.Flusher)
+		//f, _ := w.(http.Flusher)
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Connection", "keep-alive")
 
-		p2 := pricegroup.Join()
-		defer p2.Close()
-		h2 := heightgroup.Join()
-		defer h2.Close()
-
-		var ls interface{}
+		//var ls interface{}
 		for {
 			if running {
 				select {
-				case ls = <-p2.In:
-					io.WriteString(w, fmt.Sprintf("data: %v\n\n", ls.(string)))
-					f.Flush()
-				case ls = <-h2.In:
-					io.WriteString(w, fmt.Sprintf("data: %v\n\n", ls.(string)))
-					f.Flush()
 				case <-notifier:
 					running = false
 					log.Println("CLOSED")
