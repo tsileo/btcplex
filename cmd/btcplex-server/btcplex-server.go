@@ -160,7 +160,7 @@ Options:
 
 	// Compute the unconfirmed transaction count in a ticker
 	utxscnt := 0
-	utxscntticker := time.NewTicker(500 * time.Millisecond)
+	utxscntticker := time.NewTicker(1 * time.Second)
 	go func(pool *redis.Pool, utxscnt *int) {
 		c := pool.Get()
 		defer c.Close()
@@ -340,7 +340,7 @@ Options:
 		pm.Price = price
 		pm.LastHeight = uint(latestheight)
 		block, _ := btcplex.GetBlockCachedByHash(db, params["hash"])
-		//block.FetchTxs(db)
+		block.FetchMeta(db)
 		pm.Block = block
 		pm.Title = fmt.Sprintf("Bitcoin block #%v", block.Height)
 		pm.Description = fmt.Sprintf("Bitcoin block #%v summary and related transactions", block.Height)
@@ -349,7 +349,7 @@ Options:
 
 	m.Get("/api/v1/block/:hash", func(params martini.Params, r render.Render, db *redis.Pool, req *http.Request) {
 		block, _ := btcplex.GetBlockCachedByHash(db, params["hash"])
-		//block.FetchTxs(db)
+		block.FetchMeta(db)
 		block.Links = initHATEOAS(block.Links, req)
 		if block.Parent != "" {
 			block.Links = addHATEOAS(block.Links, "previous_block", fmt.Sprintf("/api/v1/block/%v", block.Parent))

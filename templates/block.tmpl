@@ -16,6 +16,11 @@
   <dt>Merkle Root</dt>
   <dd class="hash">{{.MerkleRoot}}</dd>
 
+  {{if eq .Main false}}
+  <dt>Status</dt>
+  <dd class="text-danger"><span class="glyphicon glyphicon-warning-sign"></span> <strong>Orphaned</strong></dd>
+  {{end}}
+  
   <dt>Height</dt>
   <dd>{{.Height}}</dd>
 

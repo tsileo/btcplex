@@ -10,7 +10,7 @@ import (
 type Block struct {
 	Hash       string `json:"hash"`
 	Height     uint   `json:"height"`
-	Txs        []*Tx  `json:"tx,omitempty" bson:"-"`
+	Txs        []*Tx  `json:"tx,omitempty"`
 	Version    uint32 `json:"ver"`
 	MerkleRoot string `json:"mrkl_root"`
 	BlockTime  uint32 `json:"time"`
@@ -23,6 +23,8 @@ type Block struct {
 	Parent string                       `json:"prev_block"`
 	Next   string                       `json:"next_block"`
 	Links  map[string]map[string]string `json:"_links,omitempty"`
+	Meta            *BlockMeta                   `json:"-"`
+	Main bool `json:"-"`
 }
 
 type Tx struct {
@@ -33,8 +35,8 @@ type Tx struct {
 	Version         uint32                       `json:"ver"`
 	TxInCnt         uint32                       `json:"vin_sz"`
 	TxOutCnt        uint32                       `json:"vout_sz"`
-	TxIns           []*TxIn                      `json:"in" bson:"-"`
-	TxOuts          []*TxOut                     `json:"out" bson:"-"`
+	TxIns           []*TxIn                      `json:"in"`
+	TxOuts          []*TxOut                     `json:"out"`
 	TotalOut        uint64                       `json:"vout_total"`
 	TotalIn         uint64                       `json:"vin_total"`
 	BlockHash       string                       `json:"block_hash"`
@@ -79,9 +81,15 @@ type TxIn struct {
 
 type TxoSpent struct {
 	Spent       bool   `json:"spent"`
-	BlockHeight uint32 `json:"block_height,omitempty" gorethink:",omitempty"`
-	InputHash   string `json:"tx_hash,omitempty"  gorethink:",omitempty"`
-	InputIndex  uint32 `json:"in_index,omitempty" gorethink:",omitempty"`
+	BlockHeight uint32 `json:"block_height,omitempty"`
+	InputHash   string `json:"tx_hash,omitempty"`
+	InputIndex  uint32 `json:"in_index,omitempty"`
+}
+
+type BlockMeta struct {
+	Main	bool	`redis:"main"`
+	Next    string  `redis:"next"`
+	Parent  string  `redis:"parent"`
 }
 
 // Return block reward at the given height
@@ -144,6 +152,22 @@ func (block *Block) FetchTxs(rpool *redis.Pool) (err error) {
 		ctx.Build(rpool)
 		block.Txs = append(block.Txs, ctx)
 	}
+	return
+}
+
+func (block *Block) FetchMeta(rpool *redis.Pool) (err error) {
+	c := rpool.Get()
+	defer c.Close()
+	meta := new(BlockMeta)
+	v, err := redis.Values(c.Do("HGETALL", fmt.Sprintf("block:%v:h", block.Hash)))
+	if err != nil {
+		return
+	}
+	if err = redis.ScanStruct(v, meta); err != nil {
+		return
+	}
+	block.Next = meta.Next
+	block.Main = meta.Main
 	return
 }
 
