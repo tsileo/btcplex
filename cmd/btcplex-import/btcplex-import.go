@@ -170,30 +170,11 @@ func main() {
 
 	concurrency := 250
 	sem := make(chan bool, concurrency)
-	//concurrency := 50
-	//sem := make(chan bool, concurrency)
-	//for i := 0; i < cap(sem); i++ {
-	//    sem <- true
-	//}
 
 	// Real network magic byte
 	blockchain, _ := blkparser.NewBlockchain("/box/bitcoind_data/blocks", [4]byte{0xF9, 0xBE, 0xB4, 0xD9})
-
-	//txscounter := ratecounter.NewRateCounter(60 * time.Second)
-	//blockscounter := ratecounter.NewRateCounter(60 * time.Second)
-
-	//ticker := time.NewTicker(10 * time.Second)
-	//go func() {
-	//    for _ = range ticker.C {
-	//        log.Printf("Blocks/min: %v | Tx/min: %v\n", blockscounter.Rate(), txscounter.Rate())
-	//    }
-	//}()
-	//autos := true
 	block_height := uint(0)
 	//if latestheight != 0 {
-	//POS:26031147, 582014/02/08 14:53:36 Current block: 234537
-	//POS:95487936, 722014/02/09 19:51:54 Current block: 249390
-	//POS:, 722014/02/09 19:51:16 Current block:
 	//    err = blockchain.SkipTo(uint32(72), int64(94891519))
 	//    block_height = 249383
 	//    autos = false
@@ -345,8 +326,6 @@ func main() {
 			// Skip the ins if it's a CoinBase Tx (1 TxIn for newly generated coins)
 			if !(len(tx.TxIns) == 1 && tx.TxIns[0].InputVout == 0xffffffff) {
 
-				//conn.Send("MULTI")
-
 				for txi_index, txi := range tx.TxIns {
 					txwg.Add(1)
 					sem <- true
@@ -379,6 +358,7 @@ func main() {
 								panic(err)
 							}
 						} else {
+							// Shouldn't happen!
 							//log.Println("Fallback to SSDB")
 							prevtxoredisjson, err := redis.String(conn.Do("GET", fmt.Sprintf("txo:%v:%v", txi.InputHash, txi.InputVout)))
 							if err != nil {
@@ -388,35 +368,12 @@ func main() {
 							prevtxoredis := new(TxOut)
 							json.Unmarshal([]byte(prevtxoredisjson), prevtxoredis)
 
-							// If something  goes wrong with LevelDB, no problem, we query MongoDB
-							//log.Println("Fallback to MongoDB")
-							//prevtxomongo := new(TxOut)
-							//if err := db.C("txos").Find(bson.M{"txhash":txi.InputHash, "index": txi.InputVout}).One(prevtxomongo); err != nil {
-							//    log.Printf("TXO requested as prevtxo: %v\n", txi.InputHash)
-							//    panic(err)
-							//}
 							prevtxo.Addr = prevtxoredis.Addr
 							prevtxo.Value = prevtxoredis.Value
 							//prevtxo.Id = prevtxomongo.Id.Hex()
 						}
 
-						//go func(txi *blkparser.TxIn) {
 						ldb.Delete(wo, []byte(fmt.Sprintf("txo:%v:%v", txi.InputHash, txi.InputVout)))
-						//}(txi)
-
-						//} else {
-						//    for i := 1; i < 11; i++ {
-						//        err = db.C("txos").Find(bson.M{"txhash":txi.InputHash, "index": txi.InputVout}).One(prevtxo)
-						//        if err != nil {
-						//            if i == 10 {
-						//                panic(fmt.Sprintf("Can't find previous TXO for TXI: %+v, err:%v", txi, err))
-						//            }
-						//            log.Printf("Can't find previous TXO for TXI: %+v, err:%v\n", txi, err)
-						//            time.Sleep(time.Duration(i*5000)*time.Millisecond)
-						//            continue
-						//        }
-						//    }
-						//}
 
 						nprevout.Address = prevtxo.Addr
 						nprevout.Value = prevtxo.Value
@@ -452,10 +409,6 @@ func main() {
 					}(txi, bl, tx, pool, &total_tx_in, txi_index)
 
 				}
-				//r, err := conn.Do("EXEC")
-				//if err != nil {
-				//    panic(err)
-				//}
 			}
 
 			err := ldb.Write(wo, wb)
