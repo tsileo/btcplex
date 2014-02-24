@@ -15,6 +15,7 @@ type Config struct {
 	AppPort            uint   `json:"app_port"`
 	AppApiRateLimited  bool   `json:"app_api_rate_limited"`
 	AppTemplatesPath   string `json:"app_templates_path"`
+	AppGoogleAnalytics string `json:"app_google_analytics"`
 }
 
 // Load configuration from json file

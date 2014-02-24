@@ -17,6 +17,8 @@ func ProcessUnconfirmedTxs(conf *Config, pool *redis.Pool, running *bool) {
 	var lastts, cts int64
 	var lastkey, ckey string
 
+	log.Println("ProcessUnconfirmedTxs startup")
+
 	c := pool.Get()
 	defer c.Close()
 

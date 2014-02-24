@@ -44,10 +44,11 @@ type pageMeta struct {
 	CurrentHeight  uint
 	Error          string
 	Price          float64
-	paginationData *paginationData
+	PaginationData *PaginationData
+	Analytics		string
 }
 
-type paginationData struct {
+type PaginationData struct {
 	CurrentPage int
 	MaxPage     int
 	Next        int
@@ -319,6 +320,7 @@ Options:
 		pm.Description = "Open source Bitcoin block chain explorer with JSON API"
 		pm.Menu = "latest_blocks"
 		pm.LastHeight = uint(latestheight)
+		pm.Analytics = conf.AppGoogleAnalytics
 		r.HTML(200, "index", &pm)
 	})
 
@@ -332,6 +334,7 @@ Options:
 		pm.Menu = "blocks"
 		pm.LastHeight = uint(latestheight)
 		pm.CurrentHeight = uint(currentheight)
+		pm.Analytics = conf.AppGoogleAnalytics
 		r.HTML(200, "blocks", &pm)
 	})
 
@@ -344,6 +347,7 @@ Options:
 		pm.Block = block
 		pm.Title = fmt.Sprintf("Bitcoin block #%v", block.Height)
 		pm.Description = fmt.Sprintf("Bitcoin block #%v summary and related transactions", block.Height)
+		pm.Analytics = conf.AppGoogleAnalytics
 		r.HTML(200, "block", &pm)
 	})
 
@@ -370,6 +374,7 @@ Options:
 		pm.Description = "Transactions waiting to be included in a Bitcoin block, updated in real time."
 		//utxs, _ := btcplex.GetUnconfirmedTxs(rpool)
 		pm.Txs = &[]*btcplex.Tx{}
+		pm.Analytics = conf.AppGoogleAnalytics
 		r.HTML(200, "unconfirmed-transactions", &pm)
 	})
 
@@ -390,6 +395,7 @@ Options:
 		pm.Tx = tx
 		pm.Title = fmt.Sprintf("Bitcoin transaction %v", tx.Hash)
 		pm.Description = fmt.Sprintf("Bitcoin transaction %v summary.", tx.Hash)
+		pm.Analytics = conf.AppGoogleAnalytics
 		r.HTML(200, "tx", pm)
 	})
 	m.Get("/api/v1/tx/:hash", func(params martini.Params, r render.Render, db *redis.Pool, rdb *RedisWrapper, req *http.Request) {
@@ -414,7 +420,7 @@ Options:
 		pm := new(pageMeta)
 		pm.Price = price
 		pm.LastHeight = uint(latestheight)
-		pm.paginationData = new(paginationData)
+		pm.PaginationData = new(PaginationData)
 		pm.Title = fmt.Sprintf("Bitcoin address %v", params["address"])
 		pm.Description = fmt.Sprintf("Transactions and summary for the Bitcoin address %v.", params["address"])
 		// AddressData
@@ -422,24 +428,24 @@ Options:
 		pm.AddressData = addressdata
 		// Pagination
 		d := float64(addressdata.TxCnt) / float64(txperpage)
-		pm.paginationData.MaxPage = int(math.Ceil(d))
+		pm.PaginationData.MaxPage = int(math.Ceil(d))
 		currentPage := req.URL.Query().Get("page")
 		if currentPage == "" {
 			currentPage = "1"
 		}
-		pm.paginationData.CurrentPage, _ = strconv.Atoi(currentPage)
-		pm.paginationData.Pages = N(pm.paginationData.MaxPage)
-		pm.paginationData.Next = 0
-		pm.paginationData.Prev = 0
-		if pm.paginationData.CurrentPage > 1 {
-			pm.paginationData.Prev = pm.paginationData.CurrentPage - 1
+		pm.PaginationData.CurrentPage, _ = strconv.Atoi(currentPage)
+		pm.PaginationData.Pages = N(pm.PaginationData.MaxPage)
+		pm.PaginationData.Next = 0
+		pm.PaginationData.Prev = 0
+		if pm.PaginationData.CurrentPage > 1 {
+			pm.PaginationData.Prev = pm.PaginationData.CurrentPage - 1
 		}
-		if pm.paginationData.CurrentPage < pm.paginationData.MaxPage {
-			pm.paginationData.Next = pm.paginationData.CurrentPage + 1
+		if pm.PaginationData.CurrentPage < pm.PaginationData.MaxPage {
+			pm.PaginationData.Next = pm.PaginationData.CurrentPage + 1
 		}
-		fmt.Printf("%+v\n", pm.paginationData)
+		fmt.Printf("%+v\n", pm.PaginationData)
 		// Fetch txs given the pagination
-		addressdata.FetchTxs(db, txperpage*(pm.paginationData.CurrentPage-1), txperpage*pm.paginationData.CurrentPage)
+		addressdata.FetchTxs(db, txperpage*(pm.PaginationData.CurrentPage-1), txperpage*pm.PaginationData.CurrentPage)
 		r.HTML(200, "address", pm)
 	})
 	m.Get("/api/v1/address/:address", func(params martini.Params, r render.Render, db *redis.Pool, req *http.Request) {
@@ -472,6 +478,7 @@ Options:
 		pm.Title = "API Documentation"
 		pm.Description = "BTCPlex provides JSON API for developers to retrieve Bitcoin block chain data pragmatically"
 		pm.Menu = "api"
+		pm.Analytics = conf.AppGoogleAnalytics
 		r.HTML(200, "api_docs", pm)
 	})
 
@@ -482,6 +489,7 @@ Options:
 		pm.Title = "Query API Documentation"
 		pm.Description = "BTCPlex provides JSON API for developers to retrieve Bitcoin block chain data pragmatically"
 		pm.Menu = "api"
+		pm.Analytics = conf.AppGoogleAnalytics
 		// TODO menu2
 		r.HTML(200, "docs_query_api", pm)
 	})
@@ -493,6 +501,7 @@ Options:
 		pm.Title = "REST API Documentation"
 		pm.Description = "BTCPlex provides JSON API for developers to retrieve Bitcoin block chain data pragmatically"
 		pm.Menu = "api"
+		pm.Analytics = conf.AppGoogleAnalytics
 		// TODO menu2
 		r.HTML(200, "docs_rest_api", pm)
 	})
@@ -504,6 +513,7 @@ Options:
 		pm.Title = "Server-Sent Events API Documentation"
 		pm.Description = "BTCPlex provides JSON API for developers to retrieve Bitcoin block chain data pragmatically"
 		pm.Menu = "api"
+		pm.Analytics = conf.AppGoogleAnalytics
 		// TODO menu2
 		r.HTML(200, "docs_sse_api", pm)
 	})
@@ -515,6 +525,7 @@ Options:
 		pm.Title = "About"
 		pm.Description = "Learn more about BTCPlex, an open source Bitcoin block chain explorer with JSON API"
 		pm.Menu = "about"
+		pm.Analytics = conf.AppGoogleAnalytics
 		r.HTML(200, "about", pm)
 	})
 
@@ -548,6 +559,7 @@ Options:
 		}
 		pm.Title = "Search"
 		pm.Error = "Nothing found"
+		pm.Analytics = conf.AppGoogleAnalytics
 		r.HTML(200, "search", pm)
 	})
 
