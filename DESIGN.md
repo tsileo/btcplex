@@ -31,6 +31,7 @@ Blocks, transactions, TxIns, TxOuts are stored in JSON format (SSDB support Redi
 
 - ``block:height:%v`` (height) -> Contains the hash for the given height
 - ``block:%v`` (hash) -> Block data in JSON format
+- ``block:%v`` (hash) -> Block data along with its transactions in JSON format
 - ``tx:%v`` (hash) -> Transaction data in JSON format
 - ``txi:%v:%v`` (hash, index) -> TxIn data in JSON format
 - ``txo:%v:%v`` (hash, index) -> TxOut data in JSON format
@@ -60,6 +61,16 @@ Bitcoind memory pool is "synced" in a sorted set: ``btcplex:rawmempool``.
 ### Webapp
 
 - [Martini](http://martini.codegangsta.io/)
+
+
+### Server-Sent Events
+
+One goroutine per server-sent events, broadcasted (using [bcast](https://github.com/grafov/bcast)) to multiple channels efficiently.
+
+List of Redis PubSub channels:
+
+- btcplex:utxs -> Rely unconfirmed transactions in JSON format
+- btcplex:blocknotify -> Send best block hash when it changes (blocknotify callback)
 
 
 ## Backend notes
