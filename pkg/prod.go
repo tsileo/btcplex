@@ -17,7 +17,7 @@ func CatchUpLatestBlock(conf *Config, rpool *redis.Pool, spool *redis.Pool) (don
     }
     hash := GetBlockHashRPC(conf, uint(latestheight) + 1)
     log.Printf("Catch up block: %v\n", hash)
-    //SaveBlockFromRPC(conf, spool, hash)
+    SaveBlockFromRPC(conf, spool, hash)
     return false
 }
 
