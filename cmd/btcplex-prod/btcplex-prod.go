@@ -11,6 +11,7 @@ import (
 )
 
 func main() {
+	var err error
 	usage := `Process new block and unconfirmed transactions.
 
 Usage:
@@ -33,8 +34,20 @@ Options:
 		log.Fatalf("Config file not found: %v", confFile)
 	}
 
-	conf, _ := btcplex.LoadConfig(confFile)
-	pool, _ := btcplex.GetRedis(conf)
+	conf, err := btcplex.LoadConfig(confFile)
+	if err != nil {
+		log.Fatalf("Can't load config file: %v", err)
+	}
+	pool, err := btcplex.GetRedis(conf)
+	if err != nil {
+		log.Fatalf("Can't connect to Redis: %v", err)
+	}
+	ssdb, err := btcplex.GetSSDB(conf)
+	if err != nil {
+		log.Fatalf("Can't connect to SSDB: %v", err)
+	}
+
+	go btcplex.ProcessNewBlock(conf, pool, ssdb)
 
 	conn := pool.Get()
 	defer conn.Close()

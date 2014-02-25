@@ -174,7 +174,7 @@ Options:
 	// PubSub channel for blocknotify bitcoind RPC like
 	blocknotifygroup := bcast.NewGroup()
 	go blocknotifygroup.Broadcasting(0)
-	go bcastToRedisPubSub(pool, blocknotifygroup, "btcplex:blocknotify")
+	go bcastToRedisPubSub(pool, blocknotifygroup, "btcplex:blocknotify2")
 
 	// PubSub channel for unconfirmed txs / rawmemorypool
 	utxgroup := bcast.NewGroup()

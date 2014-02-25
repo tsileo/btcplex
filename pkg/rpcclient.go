@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"errors"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -50,25 +51,30 @@ func CallBitcoinRPC(address string, method string, id interface{}, params []inte
 	return result, nil
 }
 
-func SaveBlockFromRPC(conf *Config, pool *redis.Pool, block_height uint) (block *Block, err error) {
+func SaveBlockFromRPC(conf *Config, pool *redis.Pool, hash string) (block *Block, err error) {
 	c := pool.Get()
 	defer c.Close()
 	var wg sync.WaitGroup
 	sem := make(chan bool, 25)
 	// Get the block hash
-	res, err := CallBitcoinRPC(conf.BitcoindRpcUrl, "getblockhash", 1, []interface{}{block_height})
+	//res, err := CallBitcoinRPC(conf.BitcoindRpcUrl, "getblockhash", 1, []interface{}{block_height})
+	//if err != nil {
+	//	log.Fatalf("Err: %v", err)
+	//}
+	res, err := CallBitcoinRPC(conf.BitcoindRpcUrl, "getblock", 1, []interface{}{hash})
 	if err != nil {
-		log.Fatalf("Err: %v", err)
+		return
 	}
-	res, err = CallBitcoinRPC(conf.BitcoindRpcUrl, "getblock", 1, []interface{}{res["result"]})
-	if err != nil {
-		log.Fatalf("Err: %v", err)
+	if res["result"] == nil {
+		err = errors.New("Error fetching block")
+		return
 	}
 	blockjson := res["result"].(map[string]interface{})
 
 	block = new(Block)
 	block.Hash = blockjson["hash"].(string)
-	block.Height = block_height
+	bheight, _ := blockjson["height"].(json.Number).Int64()
+	block.Height = uint(bheight)
 	vertmp, _ := blockjson["version"].(json.Number).Int64()
 	block.Version = uint32(vertmp)
 	block.MerkleRoot = blockjson["merkleroot"].(string)
