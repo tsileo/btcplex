@@ -71,6 +71,7 @@ Options:
 			if done {
 				break
 			}	
+			time.Sleep(2 * time.Millisecond)
 		}
 			
 	}
