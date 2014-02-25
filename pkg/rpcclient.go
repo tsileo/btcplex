@@ -74,7 +74,7 @@ func SaveBlockFromRPC(conf *Config, pool *redis.Pool, hash string) (block *Block
 	c := pool.Get()
 	defer c.Close()
 	var wg sync.WaitGroup
-	sem := make(chan bool, 25)
+	sem := make(chan bool, 5)
 	// Get the block hash
 	//res, err := CallBitcoinRPC(conf.BitcoindRpcUrl, "getblockhash", 1, []interface{}{block_height})
 	//if err != nil {

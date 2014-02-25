@@ -4,6 +4,8 @@ package main
 import (
 	"log"
 	"os"
+	"os/signal"
+	"sync"
 
 	"github.com/docopt/docopt.go"
 
@@ -46,13 +48,31 @@ Options:
 	if err != nil {
 		log.Fatalf("Can't connect to SSDB: %v", err)
 	}
+	
+	var wg sync.WaitGroup
+	running := true
+	cs := make(chan os.Signal, 1)
+	signal.Notify(cs, os.Interrupt)
+	go func() {
+		for sig := range cs {
+			running = false
+			log.Printf("Captured %v, waiting for everything to finish...\n", sig)
+			wg.Wait()
+			os.Exit(1)
+		}
+	}()
 
 	log.Println("Catching up latest block before starting")
 	for {
-		done := btcplex.CatchUpLatestBlock(conf, pool, ssdb)
-		if done {
-			break
-		}	
+		if running {
+			wg.Add(1)
+			done := btcplex.CatchUpLatestBlock(conf, pool, ssdb)
+			wg.Done()
+			if done {
+				break
+			}	
+		}
+			
 	}
 	log.Println("Catch up done!")
 	
@@ -62,6 +82,5 @@ Options:
 	defer conn.Close()
 
 	// Process unconfirmed transactions (power the unconfirmed txs page/API)
-    running := true
     btcplex.ProcessUnconfirmedTxs(conf, pool, &running)
 }
