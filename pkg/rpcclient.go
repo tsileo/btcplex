@@ -51,6 +51,25 @@ func CallBitcoinRPC(address string, method string, id interface{}, params []inte
 	return result, nil
 }
 
+func GetBlockHashRPC(conf *Config, height uint) string {
+	// Get the block hash
+	res, err := CallBitcoinRPC(conf.BitcoindRpcUrl, "getblockhash", 1, []interface{}{height})
+	if err != nil {
+		return ""
+	}
+	return res["result"].(string)
+}
+
+func GetBlockCountRPC(conf *Config) uint {
+	// Get the block hash
+	res, err := CallBitcoinRPC(conf.BitcoindRpcUrl, "getblockcount", 1, []interface{}{})
+	if err != nil {
+		return uint(0)
+	}
+	count, _ := res["result"].(json.Number).Int64()
+	return uint(count)
+}
+
 func SaveBlockFromRPC(conf *Config, pool *redis.Pool, hash string) (block *Block, err error) {
 	c := pool.Get()
 	defer c.Close()

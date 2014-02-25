@@ -47,6 +47,15 @@ Options:
 		log.Fatalf("Can't connect to SSDB: %v", err)
 	}
 
+	log.Println("Catching up latest block before starting")
+	for {
+		done := btcplex.CatchUpLatestBlock(conf, pool, ssdb)
+		if done {
+			break
+		}	
+	}
+	log.Println("Catch up done!")
+	
 	go btcplex.ProcessNewBlock(conf, pool, ssdb)
 
 	conn := pool.Get()

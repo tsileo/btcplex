@@ -50,6 +50,7 @@ Some features that are on my TODO list:
 - An official JS lib to interact with the API
 - A Watch-only addresses page
 - Live notification on a unconfirmed transaction page when it actually get included in a block
+- Parse the coinbase to extract which pool mined the block
 - Docker build
 - ... (don't hesitate to request features!)
 
