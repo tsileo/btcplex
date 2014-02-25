@@ -171,6 +171,15 @@ Options:
 		}
 	}(pool, &utxscnt)
 
+	latestheightticker := time.NewTicker(1 * time.Second)
+	go func(pool *redis.Pool, latestheight *int) {
+		c := pool.Get()
+		defer c.Close()
+		for _ = range latestheightticker.C {
+			*latestheight, _ = redis.Int(c.Do("GET", "height:latest"))
+		}
+	}(ssdb, &latestheight)
+
 	// PubSub channel for blocknotify bitcoind RPC like
 	blocknotifygroup := bcast.NewGroup()
 	go blocknotifygroup.Broadcasting(0)
@@ -232,12 +241,6 @@ Options:
 			return uint(latestheight) - height + 1
 		},
 	}
-
-	conn := ssdb.Get()
-	latestheight, _ = redis.Int(conn.Do("GET", "height:latest"))
-	log.Printf("Latest height: %v\n", latestheight)
-	latesthash := ""
-	conn.Close()
 
 	m := martini.Classic()
 	m.Map(rediswrapper)
@@ -526,9 +529,9 @@ Options:
 		r.JSON(200, latestheight)
 	})
 
-	m.Get("/api/v1/latesthash", func(r render.Render) {
-		r.JSON(200, latesthash)
-	})
+//	m.Get("/api/v1/latesthash", func(r render.Render) {
+//		r.JSON(200, latesthash)
+//	})
 
 	m.Get("/api/v1/getblockhash/:height", func(r render.Render, params martini.Params, db *redis.Pool) {
 		height, _ := strconv.ParseUint(params["height"], 10, 0)

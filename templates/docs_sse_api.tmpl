@@ -2,16 +2,17 @@
 <div class="row" style="margin-top:30px;">
 <div class="col-md-3">
 	<div class="list-group" id="apiendpoints">
-  <a href="#getblockcount" class="list-group-item">GET /getblockcount</a>
-  <a href="#getblockhash_height" class="list-group-item">GET /getblockhash/:height</a>
-  <a href="#latesthash" class="list-group-item">GET /latesthash</a>
+  <a href="#getblockcount" class="list-group-item">GET /blocknotify</a>
+  <a href="#getblockcount" class="list-group-item">GET /newblock</a>
+  <a href="#getblockcount" class="list-group-item">GET /utxs</a>
 </div>
 
 </div>
-
 
 <div class="col-md-9">
-<p class="lead">The <a href="https://developer.mozilla.org/en-US/docs/Server-sent_events/Using_server-sent_events">Server-Sent Events</a> API allows you to get notified on events.</p>
+<p class="lead">The <a href="https://developer.mozilla.org/en-US/docs/Server-sent_events/Using_server-sent_events">Server-Sent Events</a> API allows you to get real time update on events.</p>
+
+<p>You can consume server-sent events using <a href="https://developer.mozilla.org/en-US/docs/Server-sent_events">Javascript</a> or any language (<a href="https://pypi.python.org/pypi/sseclient">using Python with sseclient</a>...).</p>
 
 <h3>Path</h3>
 
