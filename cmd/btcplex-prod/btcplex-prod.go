@@ -63,6 +63,8 @@ Options:
 			for _, otx := range oblock.Txs {
 				otx.Revert(ssdb)
 			}
+		} else {
+			log.Printf("Skipping block #%v\n", oblock.Height)
 		}
 		if ch == uint(latestheight) {
 			break
