@@ -94,10 +94,45 @@ func SaveBlockFromRPC(conf *Config, pool *redis.Pool, hash string) (block *Block
 	block.Hash = blockjson["hash"].(string)
 	bheight, _ := blockjson["height"].(json.Number).Int64()
 	block.Height = uint(bheight)
+	block.Parent = blockjson["previousblockhash"].(string)
+
+	prevheight := block.Height - 1
+	prevhashtest := block.Parent
+	prevnext := block.Hash
+	for {
+		prevkey := fmt.Sprintf("height:%v", prevheight)
+		prevcnt, _ := redis.Int(c.Do("ZCARD", prevkey))
+		// SSDB doesn't support negative slice yet
+		prevs, _ := redis.Strings(c.Do("ZRANGE", prevkey, 0, prevcnt-1))
+		if len(prevs) == 0 {
+			break
+		}
+		for _, cprevhash := range prevs {
+			if cprevhash == prevhashtest {
+				// current block parent
+				prevhashtest, _ = redis.String(c.Do("HGET", fmt.Sprintf("block:%v:h", cprevhash), "parent"))
+				// Set main to 1 and the next => prevnext
+				c.Do("HMSET", fmt.Sprintf("block:%v:h", cprevhash), "main", true, "next", prevnext)
+				c.Do("SET", fmt.Sprintf("block:height:%v", prevheight), cprevhash)
+				prevnext = cprevhash
+			} else {
+				// Set main to 0
+				c.Do("HSET", fmt.Sprintf("block:%v:h", cprevhash), "main", false)
+				oblock, _ := GetBlockCachedByHash(pool, cprevhash)
+				for _, otx := range oblock.Txs {
+					otx.Revert(pool)
+				}
+			}
+		}
+		if len(prevs) == 1 {
+			break
+		}
+		prevheight--
+	}
+
 	vertmp, _ := blockjson["version"].(json.Number).Int64()
 	block.Version = uint32(vertmp)
 	block.MerkleRoot = blockjson["merkleroot"].(string)
-	block.Parent = blockjson["previousblockhash"].(string)
 	sizetmp, _ := blockjson["size"].(json.Number).Int64()
 	block.Size = uint32(sizetmp)
 	noncetmp, _ := blockjson["nonce"].(json.Number).Int64()
@@ -135,40 +170,6 @@ func SaveBlockFromRPC(conf *Config, pool *redis.Pool, hash string) (block *Block
 	block.Txs = txs
 	fullblockjson, _ := json.Marshal(block)
 	c.Do("SET", fmt.Sprintf("block:%v:cached", block.Hash), fullblockjson)
-
-	prevheight := block.Height - 1
-	prevhashtest := block.Parent
-	prevnext := block.Hash
-	for {
-		prevkey := fmt.Sprintf("height:%v", prevheight)
-		prevcnt, _ := redis.Int(c.Do("ZCARD", prevkey))
-		// SSDB doesn't support negative slice yet
-		prevs, _ := redis.Strings(c.Do("ZRANGE", prevkey, 0, prevcnt-1))
-		if len(prevs) == 0 {
-			break
-		}
-		for _, cprevhash := range prevs {
-			if cprevhash == prevhashtest {
-				// current block parent
-				prevhashtest, _ = redis.String(c.Do("HGET", fmt.Sprintf("block:%v:h", cprevhash), "parent"))
-				// Set main to 1 and the next => prevnext
-				c.Do("HMSET", fmt.Sprintf("block:%v:h", cprevhash), "main", true, "next", prevnext)
-				c.Do("SET", fmt.Sprintf("block:height:%v", prevheight), cprevhash)
-				prevnext = cprevhash
-			} else {
-				// Set main to 0
-				c.Do("HSET", fmt.Sprintf("block:%v:h", cprevhash), "main", false)
-				oblock, _ := GetBlockCachedByHash(pool, cprevhash)
-				for _, otx := range oblock.Txs {
-					otx.Revert(pool)
-				}
-			}
-		}
-		if len(prevs) == 1 {
-			break
-		}
-		prevheight--
-	}
 	return
 }
 
@@ -442,7 +443,7 @@ func SaveTxFromRPC(conf *Config, pool *redis.Pool, tx_id string, block *Block, t
 	ntxjsonkey := fmt.Sprintf("tx:%v", tx.Hash)
 	c.Do("SET", ntxjsonkey, ntxjson)
 	c.Do("ZADD", fmt.Sprintf("block:%v:txs", block.Hash), tx_index, ntxjsonkey)
-
+	c.Do("ZADD", fmt.Sprintf("tx:%v:blocks", tx.Hash), tx.BlockTime, block.Hash)
 	return
 }
 
