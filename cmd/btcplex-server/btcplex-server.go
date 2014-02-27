@@ -566,7 +566,7 @@ Options:
 	m.Get("/api/v1/blocknotify", func(w http.ResponseWriter, r *http.Request) {
 		running := true
 		notifier := w.(http.CloseNotifier).CloseNotify()
-		timer := time.NewTimer(time.Second * 1300)
+		timer := time.NewTimer(time.Second * 1800)
 
 		f, _ := w.(http.Flusher)
 		w.Header().Set("Content-Type", "text/event-stream")
@@ -601,7 +601,7 @@ Options:
 	m.Get("/events", func(w http.ResponseWriter, r *http.Request) {
 		running := true
 		notifier := w.(http.CloseNotifier).CloseNotify()
-		timer := time.NewTimer(time.Second * 900)
+		timer := time.NewTimer(time.Second * 8400)
 
 		f, _ := w.(http.Flusher)
 		w.Header().Set("Content-Type", "text/event-stream")
@@ -635,7 +635,7 @@ Options:
 	m.Get("/events_unconfirmed", func(w http.ResponseWriter, r *http.Request) {
 		running := true
 		notifier := w.(http.CloseNotifier).CloseNotify()
-		timer := time.NewTimer(time.Second * 900)
+		timer := time.NewTimer(time.Second * 3600)
 
 		f, _ := w.(http.Flusher)
 		w.Header().Set("Content-Type", "text/event-stream")
