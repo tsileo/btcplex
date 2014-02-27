@@ -50,6 +50,21 @@ Options:
 		log.Fatalf("Can't connect to SSDB: %v", err)
 	}
 	
+	c := uint(0)
+	latestheight, _ := redis.Int(c.Do("GET", "height:latest"))
+	for {
+		chash, _ := GetBlockHash(ssdb, uint(c))
+		oblock, _ := GetBlockCachedByHash(ssdb, chash)
+		log.Printf("Revert block #%v\n", oblock.Height)
+		for _, otx := range oblock.Txs {
+			otx.Revert(ssdb)
+		}
+		if c == latestheight {
+			break
+		}
+		c++
+	}
+
 	var wg sync.WaitGroup
 	running := true
 	cs := make(chan os.Signal, 1)
