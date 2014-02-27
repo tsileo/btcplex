@@ -137,7 +137,6 @@
     </div><!-- /.container -->
 
     <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
-    <script src="//cdnjs.cloudflare.com/ajax/libs/jquery-jgrowl/1.2.12/jquery.jgrowl.min.js"></script>
     <script src="//netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script>
     <script src="//cdnjs.cloudflare.com/ajax/libs/jquery-timeago/1.1.0/jquery.timeago.min.js"></script>
     <script type="text/javascript">
@@ -168,6 +167,26 @@
     //    $.jGrowl("New block found!");
     //  };
     //};
+    var addzero = function(n) {
+      if (n <= 9) {
+        return '0'+n
+      }
+      return n;
+    }
+    var formatutc = function(dd) {
+      return dd.getUTCFullYear()+'-'+addzero(dd.getUTCMonth() + 1)+'-'+addzero(dd.getUTCDate())+' '+addzero(dd.getUTCHours())+':'+addzero(dd.getUTCMinutes())+':'+addzero(dd.getUTCSeconds())+' +0000 UTC'
+    };
+    if ($("#latest_blocks").length == 1) {
+      var source = new EventSource('/events');
+      source.onmessage = function(e) {
+        var data = JSON.parse(e.data);
+        $('#latest_blocks tbody').prepend('<tr><td>'+data.height+'</td><td><a href="/block/'+data.hash+'" class="hash">'+data.hash+'</a></td><td>'+formatutc(new Date(data.time*1000))+' (<time datetime="'+new Date(data.time * 1000).toISOString()+'"></time>)</td><td>'+data.n_tx+'</td><td>'+(data.total_out / 1e8).toFixed(8)+'</td><td>'+(data.size/1024).toFixed(3)+'</td></tr>');
+        if ($('#latest_blocks tbody tr').size() > 50) {
+          $('#latest_blocks tbody tr').last().remove();
+        }
+        $("time").timeago();
+      };
+    };
 
     if ($("#unconfirmedcnt").length == 1) {
       var source2 = new EventSource('/events_unconfirmed');

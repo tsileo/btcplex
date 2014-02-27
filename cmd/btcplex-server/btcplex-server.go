@@ -191,6 +191,10 @@ Options:
 	go bcastToRedisPubSub(pool, utxgroup, "btcplex:utxs")
 	// TODO Ticker for utxs count => events_unconfirmed
 
+	newblockgroup := bcast.NewGroup()
+	go newblockgroup.Broadcasting(0)
+	go bcastToRedisPubSub(pool, newblockgroup, "btcplex:newblock")
+
 	// Go template helper
 	appHelpers := template.FuncMap{
 		"cut": func(addr string, length int) string {
@@ -599,15 +603,20 @@ Options:
 		notifier := w.(http.CloseNotifier).CloseNotify()
 		timer := time.NewTimer(time.Second * 900)
 
-		//f, _ := w.(http.Flusher)
+		f, _ := w.(http.Flusher)
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Connection", "keep-alive")
 
-		//var ls interface{}
+		newblockg := newblockgroup.Join()
+		defer newblockg.Close()
+		var ls interface{}
 		for {
 			if running {
 				select {
+				case ls = <-newblockg.In:
+					io.WriteString(w, fmt.Sprintf("data: %v\n\n", ls.(string)))
+					f.Flush()
 				case <-notifier:
 					running = false
 					log.Println("CLOSED")

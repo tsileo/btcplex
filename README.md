@@ -41,6 +41,9 @@ You will also need to export ``CGO_LDFLAGS``, needed to install [levigo](https:/
 ## Roadmap
 
 - Stabilize everything for 1.0 release.
+- Make sure a transaction can't be processed multiples times
+- Make transaction reversible (when a block become orphaned)
+- A receive payment API
 
 Some features that are on my TODO list:
 
@@ -51,6 +54,8 @@ Some features that are on my TODO list:
 - A Watch-only addresses page
 - Live notification on a unconfirmed transaction page when it actually get included in a block
 - Parse the coinbase to extract which pool mined the block
+- An admin interface to monitor bitcoind/BTCplex
+- Escrow transaction handling
 - Docker build
 - ... (don't hesitate to request features!)
 

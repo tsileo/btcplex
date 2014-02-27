@@ -4,6 +4,9 @@
 
 The initial import is still slow, I already spent a lot of time trying to improve it (it took 1+ week on a small dual-core/6GB RAM server at block 247000), but less than 2 days on a more decent server (i5/16GB RAM).
 
+The database is quite big, but since disk is cheap, some infos are duplicated for faster response times.
+The balance of every addresses is tracker, even address with thousands of transactions.
+
 ## Unconfirmed transactions
 
 Bitcoind memory pool is synced every 1s in Redis, along with every transactions.
