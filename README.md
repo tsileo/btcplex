@@ -59,6 +59,10 @@ Some features that are on my TODO list:
 - Docker build
 - ... (don't hesitate to request features!)
 
+## Documentation
+
+The documentation is written in Markdown and is available in the docs directory, it's also available online (powered by [MkDocs](http://www.mkdocs.org/)) on [docs.btcplex.com](http://docs.btcplex.com). 
+
 ## Contribution
 
 Contribution are welcome, see [HACKING.md](HACKING.md) and [DESIGN.md](DESIGN.md) to get started.
