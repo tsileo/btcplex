@@ -54,8 +54,8 @@ Options:
 	ch := uint(0)
 	scon := ssdb.Get()
 	latestheight, _ := redis.Int(scon.Do("GET", "height:latest"))
-	for {
-		chash, _ := btcplex.GetBlockHash(ssdb, uint(ch))
+	chashes, _ := redis.Strings(scon.Do("ZRANGE", "blocks", 0, latestheight))
+	for _, chash := range chashes {
 		oblock, _ := btcplex.GetBlockCachedByHash(ssdb, chash)
 		oblock.FetchMeta(ssdb)
 		if oblock.Main == false {
@@ -66,11 +66,8 @@ Options:
 		} else {
 			log.Printf("Skipping block #%v\n", oblock.Height)
 		}
-		if ch == uint(latestheight) {
-			break
-		}
-		ch++
 	}
+	log.Println("DONE")
 	scon.Close()
 
 	var wg sync.WaitGroup
