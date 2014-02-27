@@ -13,8 +13,9 @@ import (
 
 	"github.com/garyburd/redigo/redis"
 	"github.com/jmhodges/levigo"
-	"github.com/pmylund/go-cache"
-	"github.com/tsileo/blkparser"
+	blkparser "github.com/tsileo/blkparser"
+
+	"btcplex"
 )
 
 type Block struct {
@@ -100,12 +101,21 @@ func getGOMAXPROCS() int {
 
 func main() {
 	fmt.Printf("GOMAXPROCS is %d\n", getGOMAXPROCS())
+	confFile := "config.json"
+		conf, err := btcplex.LoadConfig(confFile)
+	if err != nil {
+		log.Fatalf("Can't load config file: %v", err)
+	}
+	pool, err := btcplex.GetSSDB(conf)
+	if err != nil {
+		log.Fatalf("Can't connect to SSDB: %v", err)
+	}
+
 	opts := levigo.NewOptions()
 	opts.SetCreateIfMissing(true)
 	filter := levigo.NewBloomFilter(10)
 	opts.SetFilterPolicy(filter)
-	ldb, err := levigo.Open("/home/thomas/btcplex_txocached", opts) //alpha
-
+	ldb, err := levigo.Open(conf.LevelDbPath, opts) //alpha
 	defer ldb.Close()
 
 	if err != nil {
@@ -122,33 +132,12 @@ func main() {
 	wb := levigo.NewWriteBatch()
 	defer wb.Close()
 
-	// Redis connect
-	// Used for pub/sub in the webapp and data like latest processed height
-	server := "localhost:6381"
-	pool := &redis.Pool{
-		MaxIdle:     3,
-		IdleTimeout: 240 * time.Second,
-		Dial: func() (redis.Conn, error) {
-			c, err := redis.Dial("tcp", server)
-			if err != nil {
-				return nil, err
-			}
-			//                 if _, err := c.Do("AUTH", password); err != nil {
-			//                     c.Close()
-			//                     return nil, err
-			//               }
-			//                 return c, err
-			return c, err
-		},
-		TestOnBorrow: func(c redis.Conn, t time.Time) error {
-			_, err := c.Do("PING")
-			return err
-		},
-	}
 	conn := pool.Get()
 	defer conn.Close()
 
-	//latestheight, _ := redis.Int(conn.Do("GET", "height:latest"))
+	log.Println("Waiting 3 seconds before starting...")
+	time.Sleep(3 * time.Second)
+
 	latestheight := 0
 	log.Printf("Latest height: %v\n", latestheight)
 
@@ -164,26 +153,17 @@ func main() {
 		}
 	}()
 
-	c := cache.New(5*time.Minute, 30*time.Second)
-
-	log.Println("DB Loaded")
-
 	concurrency := 250
 	sem := make(chan bool, concurrency)
 
 	// Real network magic byte
-	blockchain, _ := blkparser.NewBlockchain("/box/bitcoind_data/blocks", [4]byte{0xF9, 0xBE, 0xB4, 0xD9})
+	blockchain, blockchainerr := blkparser.NewBlockchain(conf.BitcoindBlocksPath, [4]byte{0xF9, 0xBE, 0xB4, 0xD9})
+	if blockchainerr != nil {
+		log.Fatalf("Error loading block file: ", blockchainerr)
+	}
+
 	block_height := uint(0)
-	//if latestheight != 0 {
-	//    err = blockchain.SkipTo(uint32(72), int64(94891519))
-	//    block_height = 249383
-	//    autos = false
-	//    if err != nil {
-	//        log.Println("Error blkparser: blockchain.SkipTo")
-	//        os.Exit(1)
-	//    }
-	//}
-	for i := uint(0); i < 280000; i++ {
+	for {
 		if !running {
 			break
 		}
@@ -204,12 +184,6 @@ func main() {
 			conn.Do("HSET", fmt.Sprintf("block:%v:h", bl.Hash), "main", true)
 
 		} else {
-			prev_height, found := c.Get(bl.Parent)
-			if found {
-				block_height = uint(prev_height.(uint) + 1)
-			}
-
-			//if autos {
 			prevheight := block_height - 1
 			prevhashtest := bl.Parent
 			prevnext := bl.Hash
@@ -229,7 +203,7 @@ func main() {
 					} else {
 						// Set main to 0
 						conn.Do("HSET", fmt.Sprintf("block:%v:h", cprevhash), "main", false)
-						oblock, _ := GetBlockCachedByHash(pool, cprevhash)
+						oblock, _ := btcplex.GetBlockCachedByHash(pool, cprevhash)
 						for _, otx := range oblock.Txs {
 							otx.Revert(pool)
 						}
@@ -243,7 +217,6 @@ func main() {
 			//}
 
 		}
-		c.Set(bl.Hash, block_height, 30*time.Minute)
 
 		// Orphans blocks handling
 		conn.Do("ZADD", fmt.Sprintf("height:%v", block_height), bl.BlockTime, bl.Hash)
@@ -442,7 +415,7 @@ func main() {
 			ntxjson, _ := json.Marshal(ntx)
 			ntxjsonkey := fmt.Sprintf("tx:%v", ntx.Hash)
 			conn.Do("SET", ntxjsonkey, ntxjson)
-			// TODO create a zset of block for each tx
+			conn.Do("ZADD", fmt.Sprintf("tx:%v:blocks", tx.Hash), bl.BlockTime, bl.Hash)
 			conn.Do("ZADD", fmt.Sprintf("block:%v:txs", block.Hash), tx_index, ntxjsonkey)
 
 			ntx.TxIns = txis
