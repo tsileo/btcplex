@@ -186,7 +186,7 @@ func main() {
 
 		} else {
 			parentheight, _ := redis.Int(conn.Do("HGET", fmt.Sprintf("block:%v:h", bl.Parent), "height"))
-			block_height = parentheight + 1
+			block_height = uint(parentheight + 1)
 			conn.Do("HSET", fmt.Sprintf("block:%v:h", bl.Hash), "height", block_height)
 			prevheight := block_height - 1
 			prevhashtest := bl.Parent
