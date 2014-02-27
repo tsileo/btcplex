@@ -59,7 +59,11 @@ Options:
 		oblock, _ := btcplex.GetBlockCachedByHash(ssdb, chash)
 		log.Printf("Revert block #%v\n", oblock.Height)
 		for _, otx := range oblock.Txs {
-			otx.Revert(ssdb)
+			otx.Revert2(ssdb)
+		}
+		if ch == uint(790) {
+			log.Println("OUF")
+			os.Exit(1)
 		}
 		if ch == uint(latestheight) {
 			break
