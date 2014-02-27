@@ -43,7 +43,7 @@ func GetAddress(rpool *redis.Pool, address string) (addressdata *AddressData, er
 
 	totalreceived := uint64(addressh.TotalReceived)
 	totalsent := uint64(addressh.TotalSent)
-	finalbalance := totalreceived - totalsent
+	finalbalance := uint64(addressh.TotalReceived - addressh.TotalSent)
 	sentcnt, _ := redis.Int(c.Do("ZCARD", fmt.Sprintf("addr:%v:sent", address)))
 	receivedcnt, _ := redis.Int(c.Do("ZCARD", fmt.Sprintf("addr:%v:received", address)))
 
