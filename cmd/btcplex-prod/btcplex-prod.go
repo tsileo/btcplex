@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/docopt/docopt.go"
-	"github.com/garyburd/redigo/redis"
 
 	btcplex "github.com/tsileo/btcplex/pkg"
 )
@@ -50,25 +49,6 @@ Options:
 	if err != nil {
 		log.Fatalf("Can't connect to SSDB: %v", err)
 	}
-	
-	ch := uint(0)
-	scon := ssdb.Get()
-	latestheight, _ := redis.Int(scon.Do("GET", "height:latest"))
-	chashes, _ := redis.Strings(scon.Do("ZRANGE", "blocks", 0, latestheight))
-	for _, chash := range chashes {
-		oblock, _ := btcplex.GetBlockCachedByHash(ssdb, chash)
-		oblock.FetchMeta(ssdb)
-		if oblock.Main == false {
-			log.Printf("Revert block #%v\n", oblock.Height)
-			for _, otx := range oblock.Txs {
-				otx.Revert(ssdb)
-			}
-		} else {
-			log.Printf("Skipping block #%v\n", oblock.Height)
-		}
-	}
-	log.Println("DONE")
-	scon.Close()
 
 	var wg sync.WaitGroup
 	running := true

@@ -248,7 +248,7 @@ Options:
 			if block.Height == uint(latestheight) {
 				return false
 			}
-			return block.Main
+			return !block.Main
 		},
 	}
 
