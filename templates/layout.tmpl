@@ -82,16 +82,7 @@
           <ul class="nav navbar-nav">
             <li{{if eq .Menu "latest_blocks"}} class="active"{{end}}><a href="/">Latest blocks</a></li>
             <li{{if eq .Menu "utxs"}} class="active"{{end}}><a href="/unconfirmed-transactions">Unconfirmed transactions</a></li>
-        
-            <li class="dropdown {{if eq .Menu "api"}}active{{end}}">
-          <a href="#" class="dropdown-toggle" data-toggle="dropdown">API <b class="caret"></b></a>
-          <ul class="dropdown-menu">
-            <li><a href="/docs/api">Overview</a></li>
-            <li><a href="/docs/query_api">Query API</a></li>
-            <li><a href="/docs/rest_api">REST API</a></li>
-            <li><a href="/docs/sse_api">Server-Sent Events API</a></li>
-          </ul>
-        </li>
+            <li><a href="http://docs.btcplex.com">Documentation</a></li>
             <li{{if eq .Menu "about"}} class="active"{{end}}><a href="/about">About</a></li>
           </ul>
 

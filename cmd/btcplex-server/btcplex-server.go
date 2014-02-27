@@ -449,49 +449,6 @@ Options:
 		r.JSON(200, addressdata)
 	})
 
-	m.Get("/docs/api", func(r render.Render) {
-		pm := new(pageMeta)
-		pm.LastHeight = uint(latestheight)
-		pm.Title = "API Documentation"
-		pm.Description = "BTCPlex provides JSON API for developers to retrieve Bitcoin block chain data pragmatically"
-		pm.Menu = "api"
-		pm.Analytics = conf.AppGoogleAnalytics
-		r.HTML(200, "api_docs", pm)
-	})
-
-	m.Get("/docs/query_api", func(r render.Render) {
-		pm := new(pageMeta)
-		pm.LastHeight = uint(latestheight)
-		pm.Title = "Query API Documentation"
-		pm.Description = "BTCPlex provides JSON API for developers to retrieve Bitcoin block chain data pragmatically"
-		pm.Menu = "api"
-		pm.Analytics = conf.AppGoogleAnalytics
-		// TODO menu2
-		r.HTML(200, "docs_query_api", pm)
-	})
-
-	m.Get("/docs/rest_api", func(r render.Render) {
-		pm := new(pageMeta)
-		pm.LastHeight = uint(latestheight)
-		pm.Title = "REST API Documentation"
-		pm.Description = "BTCPlex provides JSON API for developers to retrieve Bitcoin block chain data pragmatically"
-		pm.Menu = "api"
-		pm.Analytics = conf.AppGoogleAnalytics
-		// TODO menu2
-		r.HTML(200, "docs_rest_api", pm)
-	})
-
-	m.Get("/docs/sse_api", func(r render.Render) {
-		pm := new(pageMeta)
-		pm.LastHeight = uint(latestheight)
-		pm.Title = "Server-Sent Events API Documentation"
-		pm.Description = "BTCPlex provides JSON API for developers to retrieve Bitcoin block chain data pragmatically"
-		pm.Menu = "api"
-		pm.Analytics = conf.AppGoogleAnalytics
-		// TODO menu2
-		r.HTML(200, "docs_sse_api", pm)
-	})
-
 	m.Get("/about", func(r render.Render) {
 		pm := new(pageMeta)
 		pm.LastHeight = uint(latestheight)

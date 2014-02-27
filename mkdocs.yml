@@ -1,0 +1,9 @@
+site_name: BTCplex Documentation
+repo_url: https://github.com/tsileo/btcplex/
+dev_addr: 0.0.0.0:8000
+theme: yeti
+pages:
+- [index.md, Home]
+- [HACKING.md, Hacking]
+- [DESIGN.md, Design]
+- [api_sse.md, API, Server-Sent Events API]
