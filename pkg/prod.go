@@ -23,8 +23,6 @@ func CatchUpLatestBlock(conf *Config, rpool *redis.Pool, spool *redis.Pool) (don
 
 func ProcessNewBlock(conf *Config, rpool *redis.Pool, spool *redis.Pool) {
 	log.Println("ProcessNewBlock startup")
-    h := GetBlockCountRPC(conf)
-    log.Println(h)
     conn := rpool.Get()
     defer conn.Close()
     psc := redis.PubSubConn{Conn: conn}

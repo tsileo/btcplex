@@ -244,6 +244,12 @@ Options:
 		"confirmation": func(height uint) uint {
 			return uint(latestheight) - height + 1
 		},
+		"is_orphaned": func(block *btcplex.Block) bool {
+			if block.Height == uint(latestheight) {
+				return false
+			}
+			return block.Main
+		},
 	}
 
 	m := martini.Classic()

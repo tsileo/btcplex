@@ -229,6 +229,10 @@ func main() {
 					} else {
 						// Set main to 0
 						conn.Do("HSET", fmt.Sprintf("block:%v:h", cprevhash), "main", false)
+						oblock, _ := GetBlockCachedByHash(pool, cprevhash)
+						for _, otx := range oblock.Txs {
+							otx.Revert(pool)
+						}
 					}
 				}
 				if len(prevs) == 1 {
@@ -438,6 +442,7 @@ func main() {
 			ntxjson, _ := json.Marshal(ntx)
 			ntxjsonkey := fmt.Sprintf("tx:%v", ntx.Hash)
 			conn.Do("SET", ntxjsonkey, ntxjson)
+			// TODO create a zset of block for each tx
 			conn.Do("ZADD", fmt.Sprintf("block:%v:txs", block.Hash), tx_index, ntxjsonkey)
 
 			ntx.TxIns = txis

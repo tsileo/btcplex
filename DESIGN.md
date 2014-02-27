@@ -24,6 +24,12 @@ The diff of the two sets is computed, and old unconfirmed transactions are remov
 
 BTCplex relies on ``bitcoind`` blocknotify callback, each time the best block changes, it will be processed (via the RPC API) and immediately available. 
 
+## Maintaining addresses balance
+
+Two integers values (all values are stored as integers) are kept in order to maintain addresses balance, the total sent and the total received.
+These values are incremented when processing transactions, if a block become orphaned, the transactions are reverted (values are decremented).
+
+
 ## Available keys in SSDB
 
 I will try to keep an updated list of how data is stored in SSDB by data type.

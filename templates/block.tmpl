@@ -1,3 +1,4 @@
+{{$lastheight := .LastHeight}}
 {{with .Block}}
 <h2>Block #{{.Height}}</h2>
 
@@ -16,7 +17,7 @@
   <dt>Merkle Root</dt>
   <dd class="hash">{{.MerkleRoot}}</dd>
 
-  {{if eq .Main false}}
+  {{if is_orphaned .}}
   <dt>Status</dt>
   <dd class="text-danger"><span class="glyphicon glyphicon-warning-sign"></span> <strong>Orphaned</strong></dd>
   {{end}}

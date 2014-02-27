@@ -158,6 +158,10 @@ func SaveBlockFromRPC(conf *Config, pool *redis.Pool, hash string) (block *Block
 			} else {
 				// Set main to 0
 				c.Do("HSET", fmt.Sprintf("block:%v:h", cprevhash), "main", false)
+				oblock, _ := GetBlockCachedByHash(pool, cprevhash)
+				for _, otx := range oblock.Txs {
+					otx.Revert(pool)
+				}
 			}
 		}
 		if len(prevs) == 1 {
