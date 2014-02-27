@@ -13,9 +13,9 @@ func (tx *Tx) Revert(spool *redis.Pool) (err error) {
 	donekey := fmt.Sprintf("%v:%v:revert", tx.Hash, tx.BlockHash)
 	done, _ := redis.Bool(ssdb.Do("GET", donekey))
 	if !done {
-		txupdated, err := GetTx(spool, tx.Hash)
-		if err != nil {
-			return
+		txupdated, txerr := GetTx(spool, tx.Hash)
+		if txerr != nil {
+			return txerr
 		}
 		// Check if the tx is included in another block
 		if tx.BlockHash == txupdated.BlockHash {
