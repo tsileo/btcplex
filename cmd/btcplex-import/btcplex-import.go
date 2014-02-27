@@ -119,7 +119,7 @@ func main() {
 	defer ldb.Close()
 
 	if err != nil {
-		fmt.Printf("failed to load db: %s\n", err)
+		log.Fatalf("failed to load db: %s\n", err)
 	}
 
 	wo := levigo.NewWriteOptions()
@@ -182,8 +182,12 @@ func main() {
 		if bl.Parent == "" {
 			block_height = uint(0)
 			conn.Do("HSET", fmt.Sprintf("block:%v:h", bl.Hash), "main", true)
+			conn.Do("HSET", fmt.Sprintf("block:%v:h", bl.Hash), "height", 0)
 
 		} else {
+			parentheight, _ := redis.Int(conn.Do("HGET", fmt.Sprintf("block:%v:h", bl.Parent), "height"))
+			block_height = parentheight + 1
+			conn.Do("HSET", fmt.Sprintf("block:%v:h", bl.Hash), "height", block_height)
 			prevheight := block_height - 1
 			prevhashtest := bl.Parent
 			prevnext := bl.Hash
