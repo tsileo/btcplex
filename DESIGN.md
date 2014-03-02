@@ -9,35 +9,24 @@ The balance of every addresses is tracker, even address with thousands of transa
 
 ## Architecture
 
-                                          +
-      INITIAL IMPORT PHASE                |   PRODUCTION PHASE
-                                          |
-                                          |
-      +-------------------+     +--------------------+       +-----------------+    +------------------+    +--------------------+
-      | btcplex-import    |     |    bitcoind        |       | btcplex-blocknotify  | btcplex-prod     |    | btcplex-server     |
-      |-------------------|     |--------------------|       |-----------------|    |------------------|    |--------------------|
-      | Parse blocks      |     | blocknotify        |       | Publish the new |    | Fetch new block  |    | Power the webapp   |
-      | directly from     |     |                    +-------> hash when best  |    | via the JSON RPC |    | and the API,       |
-      | files and save    |     +--------------------+       | block changes   |    | API and poll un- |    | fetch data in SSDB,|
-      | them to MongoDB.  |     | JSON RPC API       |       | using bitcoind  |    | -confirmed       |    | except for         |
-      |                   |     |                    <---+   | blocknotify.    |    | transactions     |    | unconfirmed transactions
-      +-------+------+----+     +--------------------+   |   +-------------+---+    +-+-^----+--+------+    | (stored in Redis). |
-              |      |          |                    |   |                 |          | |    |  |           | The only btcplex-* |
-              |      +----------> blkXXXXX.dat files |   |                 |          | |    |  |           | process that       |
-              |                 |                    |   +-----------------------------------+  |           | interact directly  |
-              |                 +--------------------+                     |          | |       |           | whith client       |
-              |                           |                                |          | |       |           +----------------+---+
-              |                           |     +-----------------------------------------------+               | |          |
-    +-------------------------------------------|----------------------------------------------------------------------------|--------------------------------+
-              |                                 |                          |          | |                       | |          |
-              |                                 |                          |          | |                       | |          |
-              |                 +---------------v-----+                +---v----------v-+---+                   | |          |
-              |                 |                     |                |                    |                   | |          |
-              +----------------->  SSDB               |                |   Redis            <-------------------+ |          |
-                                |                     |                |                    +---------------------+          |
-                                +---------------^-----+                +--------------------+                                |
-                                                |                                                                            |
-      DATABASES                                 +----------------------------------------------------------------------------+
+BTCplex is composed of four processes, ``btcplex-import``, ``btcplex-blocknotify``, ``btcplex-prod``, and ``btcplex-server``.
+
+### btcplex-import
+
+Perform the initial import of the block chain by reading directly **blkXXXXX.dat** files, and save data in SSDB.
+
+### btcplex-blocknotify
+
+Callback for **bitcoind** blocknotify feature (called each times best block hash changes), it just publish the hash in a Redis PubSub channel, it will be consumed by ``btcplex-prod``.
+
+### btcplex-prod
+
+Poll bitcoind rawmempool to keep a sorted set of unconfirmed transactions (saved in Redis, and published over PubSub).
+It also call bitcoind RPC API to fetch new block and save it to SSDB.
+
+### btcplex-server
+
+Power the webapp/API, it **never** calls **bitcoind** directly, it only query SSDB, except for unconfirmed transactions (stored in Redis).
 
 
 ## Unconfirmed transactions
