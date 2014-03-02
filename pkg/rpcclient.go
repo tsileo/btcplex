@@ -167,6 +167,7 @@ func SaveBlockFromRPC(conf *Config, pool *redis.Pool, hash string) (block *Block
 	blockjson2, _ := json.Marshal(block)
 	c.Do("ZADD", "blocks", block.BlockTime, block.Hash)
 	c.Do("MSET", fmt.Sprintf("block:%v", block.Hash), blockjson2, "height:latest", int(block.Height), fmt.Sprintf("block:height:%v", block.Height), block.Hash)
+	By(TxIndex).Sort(txs)
 	block.Txs = txs
 	fullblockjson, _ := json.Marshal(block)
 	c.Do("SET", fmt.Sprintf("block:%v:cached", block.Hash), fullblockjson)
@@ -314,6 +315,7 @@ func SaveTxFromRPC(conf *Config, pool *redis.Pool, tx_id string, block *Block, t
 	txjson := res_tx["result"].(map[string]interface{})
 
 	tx = new(Tx)
+	tx.Index = uint32(tx_index)
 	tx.Hash = tx_id
 	tx.BlockTime = block.BlockTime
 	tx.BlockHeight = block.Height
