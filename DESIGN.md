@@ -7,6 +7,39 @@ The initial import is still slow, I already spent a lot of time trying to improv
 The database is quite big, but since disk is cheap, some infos are duplicated for faster response times.
 The balance of every addresses is tracker, even address with thousands of transactions.
 
+## Architecture
+
+                                          +
+      INITIAL IMPORT PHASE                |   PRODUCTION PHASE
+                                          |
+                                          |
+      +-------------------+     +--------------------+       +-----------------+    +------------------+    +--------------------+
+      | btcplex-import    |     |    bitcoind        |       | btcplex-blocknotify  | btcplex-prod     |    | btcplex-server     |
+      |-------------------|     |--------------------|       |-----------------|    |------------------|    |--------------------|
+      | Parse blocks      |     | blocknotify        |       | Publish the new |    | Fetch new block  |    | Power the webapp   |
+      | directly from     |     |                    +-------> hash when best  |    | via the JSON RPC |    | and the API,       |
+      | files and save    |     +--------------------+       | block changes   |    | API and poll un- |    | fetch data in SSDB,|
+      | them to MongoDB.  |     | JSON RPC API       |       | using bitcoind  |    | -confirmed       |    | except for         |
+      |                   |     |                    <---+   | blocknotify.    |    | transactions     |    | unconfirmed transactions
+      +-------+------+----+     +--------------------+   |   +-------------+---+    +-+-^----+--+------+    | (stored in Redis). |
+              |      |          |                    |   |                 |          | |    |  |           | The only btcplex-* |
+              |      +----------> blkXXXXX.dat files |   |                 |          | |    |  |           | process that       |
+              |                 |                    |   +-----------------------------------+  |           | interact directly  |
+              |                 +--------------------+                     |          | |       |           | whith client       |
+              |                           |                                |          | |       |           +----------------+---+
+              |                           |     +-----------------------------------------------+               | |          |
+    +-------------------------------------------|----------------------------------------------------------------------------|--------------------------------+
+              |                                 |                          |          | |                       | |          |
+              |                                 |                          |          | |                       | |          |
+              |                 +---------------v-----+                +---v----------v-+---+                   | |          |
+              |                 |                     |                |                    |                   | |          |
+              +----------------->  SSDB               |                |   Redis            <-------------------+ |          |
+                                |                     |                |                    +---------------------+          |
+                                +---------------^-----+                +--------------------+                                |
+                                                |                                                                            |
+      DATABASES                                 +----------------------------------------------------------------------------+
+
+
 ## Unconfirmed transactions
 
 Bitcoind memory pool is synced every 1s in Redis, along with every transactions.
@@ -40,7 +73,7 @@ Blocks, transactions, TxIns, TxOuts are stored in JSON format (SSDB support Redi
 
 - ``block:height:%v`` (height) -> Contains the hash for the given height
 - ``block:%v`` (hash) -> Block data in JSON format
-- ``block:%v`` (hash) -> Block data along with its transactions in JSON format
+- ``block:%v:cached`` (hash) -> Block data along with its transactions in JSON format
 - ``tx:%v`` (hash) -> Transaction data in JSON format
 - ``txi:%v:%v`` (hash, index) -> TxIn data in JSON format
 - ``txo:%v:%v`` (hash, index) -> TxOut data in JSON format
