@@ -163,7 +163,7 @@ func SaveBlockFromRPC(conf *Config, pool *redis.Pool, hash string) (block *Block
 	block.TotalBTC = uint64(tout)
 
 	c.Do("ZADD", fmt.Sprintf("height:%v", block.Height), block.BlockTime, block.Hash)
-	c.Do("HSET", fmt.Sprintf("block:%v:h", block.Hash), "parent", block.Parent)
+	c.Do("HMSET", fmt.Sprintf("block:%v:h", block.Hash), "parent", block.Parent, "height", block.Height)
 	blockjson2, _ := json.Marshal(block)
 	c.Do("ZADD", "blocks", block.BlockTime, block.Hash)
 	c.Do("MSET", fmt.Sprintf("block:%v", block.Hash), blockjson2, "height:latest", int(block.Height), fmt.Sprintf("block:height:%v", block.Height), block.Hash)

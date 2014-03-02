@@ -90,6 +90,7 @@ type BlockMeta struct {
 	Main	bool	`redis:"main"`
 	Next    string  `redis:"next"`
 	Parent  string  `redis:"parent"`
+	Height  int     `redis:"height"`  
 }
 
 // Return block reward at the given height
@@ -158,16 +159,26 @@ func (block *Block) FetchTxs(rpool *redis.Pool) (err error) {
 func (block *Block) FetchMeta(rpool *redis.Pool) (err error) {
 	c := rpool.Get()
 	defer c.Close()
-	meta := new(BlockMeta)
-	v, err := redis.Values(c.Do("HGETALL", fmt.Sprintf("block:%v:h", block.Hash)))
+	meta, err := NewBlockMeta(rpool, block.Hash)
 	if err != nil {
-		return
-	}
-	if err = redis.ScanStruct(v, meta); err != nil {
 		return
 	}
 	block.Next = meta.Next
 	block.Main = meta.Main
+	return
+}
+
+func NewBlockMeta(rpool *redis.Pool, block_hash) (blockmeta *BlockMeta, err error) {
+	c := rpool.Get()
+	defer c.Close()
+	blockmeta := new(BlockMeta)
+	v, err := redis.Values(c.Do("HGETALL", fmt.Sprintf("block:%v:h", block_hash)))
+	if err != nil {
+		return
+	}
+	if err = redis.ScanStruct(v, blockmeta); err != nil {
+		return
+	}
 	return
 }
 
