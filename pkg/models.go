@@ -168,10 +168,10 @@ func (block *Block) FetchMeta(rpool *redis.Pool) (err error) {
 	return
 }
 
-func NewBlockMeta(rpool *redis.Pool, block_hash) (blockmeta *BlockMeta, err error) {
+func NewBlockMeta(rpool *redis.Pool, block_hash string) (blockmeta *BlockMeta, err error) {
 	c := rpool.Get()
 	defer c.Close()
-	blockmeta := new(BlockMeta)
+	blockmeta = new(BlockMeta)
 	v, err := redis.Values(c.Do("HGETALL", fmt.Sprintf("block:%v:h", block_hash)))
 	if err != nil {
 		return

@@ -241,7 +241,11 @@ Options:
 		"iadd": func(h, p int) int {
 			return h + p
 		},
-		"confirmation": func(height uint) uint {
+		"confirmation": func(hash string, height uint) uint {
+			bm, _ := btcplex.NewBlockMeta(ssdb, hash)
+			if bm.Main == false {
+				return 0
+			}
 			return uint(latestheight) - height + 1
 		},
 		"is_orphaned": func(block *btcplex.Block) bool {

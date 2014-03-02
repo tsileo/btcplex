@@ -26,7 +26,12 @@
   <dd>{{.BlockTime | formattime}} (<time datetime="{{.BlockTime | formatiso}}">{{.BlockTime | formattime}}</time>)</dd>
 
   <dt>Confirmations</dt>
-  <dd>{{confirmation .BlockHeight}}</dd>
+  {{$confirmation :=  confirmation .BlockHash .BlockHeight}}
+  {{if $confirmation}}
+  <dd>{{$confirmation}}</dd>
+  {{else}}
+  <dd class="text-danger"><span class="glyphicon glyphicon-warning-sign"></span> <strong>Unconfirmed transaction</strong>
+  {{end}}
 
   {{end}}
 
