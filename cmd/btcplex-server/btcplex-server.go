@@ -116,6 +116,8 @@ func N(n int) []struct{} {
 	return make([]struct{}, n)
 }
 
+var conf *btcplex.Config;
+
 func main() {
 	var err error
 	var latestheight int
