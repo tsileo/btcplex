@@ -24,7 +24,7 @@ func ProcessUnconfirmedTxs(conf *Config, pool *redis.Pool, running *bool) {
 
 	// Cleanup old keys since it has stopped
 	oldkeys, _ := redis.Strings(c.Do("ZRANGE", "btcplex:rawmempool", 0, -1))
-	c.Do("DEL", redis.Args{}.AddFlat(oldkeys))
+	c.Do("DEL", redis.Args{}.AddFlat(oldkeys)...)
 	c.Do("DEL", "btcplex:rawmempool")
 
 	// We fetch 25 tx max in the pool
