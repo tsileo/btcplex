@@ -140,7 +140,7 @@ Options:
 
 	log.Println("Starting btcplex-server")
 
-	conf, err := btcplex.LoadConfig(confFile)
+	conf, err = btcplex.LoadConfig(confFile)
 	if err != nil {
 		log.Fatalf("Can't load config file: %v\n", err)
 	}
