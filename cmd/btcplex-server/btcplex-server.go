@@ -331,6 +331,7 @@ Options:
 		pm.LastHeight = uint(latestheight)
 		block, _ := btcplex.GetBlockCachedByHash(db, params["hash"])
 		block.FetchMeta(db)
+		btcplex.By(btcplex.TxIndex).Sort(block.Txs)
 		pm.Block = block
 		pm.Title = fmt.Sprintf("Bitcoin block #%v", block.Height)
 		pm.Description = fmt.Sprintf("Bitcoin block #%v summary and related transactions", block.Height)
@@ -341,6 +342,7 @@ Options:
 	m.Get("/api/v1/block/:hash", func(params martini.Params, r render.Render, db *redis.Pool, req *http.Request) {
 		block, _ := btcplex.GetBlockCachedByHash(db, params["hash"])
 		block.FetchMeta(db)
+		btcplex.By(btcplex.TxIndex).Sort(block.Txs)
 		block.Links = initHATEOAS(block.Links, req)
 		if block.Parent != "" {
 			block.Links = addHATEOAS(block.Links, "previous_block", fmt.Sprintf("/api/v1/block/%v", block.Parent))
