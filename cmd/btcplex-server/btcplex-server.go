@@ -279,7 +279,7 @@ Options:
 				remoteIP = req.Header["X-Forwarded-For"][1]
 			}
 			log.Printf("R:%v\nip:%+v\n", time.Now(), remoteIP)
-			if strings.Contains(req.RequestURI, "/api/v") {
+			if strings.Contains(req.RequestURI, "/api/") {
 				ratelimited, cnt, reset := rateLimited(rediswrapper, remoteIP)
 				// Set X-RateLimit-* Header
 				res.Header().Set("X-RateLimit-Limit", strconv.Itoa(ratelimitcnt))
@@ -345,10 +345,10 @@ Options:
 		btcplex.By(btcplex.TxIndex).Sort(block.Txs)
 		block.Links = initHATEOAS(block.Links, req)
 		if block.Parent != "" {
-			block.Links = addHATEOAS(block.Links, "previous_block", fmt.Sprintf("/api/block/%v", block.Parent))
+			block.Links = addHATEOAS(block.Links, "previous_block", fmt.Sprintf("%v/api/block/%v", conf.AppUrl, block.Parent))
 		}
 		if block.Next != "" {
-			block.Links = addHATEOAS(block.Links, "next_block", fmt.Sprintf("/api/block/%v", block.Next))
+			block.Links = addHATEOAS(block.Links, "next_block", fmt.Sprintf("%v/api/block/%v", conf.AppUrl, block.Next))
 		}
 		r.JSON(200, block)
 	})
@@ -397,7 +397,7 @@ Options:
 		}
 		tx.Links = initHATEOAS(tx.Links, req)
 		if tx.BlockHash != "" {
-			tx.Links = addHATEOAS(tx.Links, "block", fmt.Sprintf("/api/block/%v", tx.BlockHash))
+			tx.Links = addHATEOAS(tx.Links, "block", fmt.Sprintf("%v/api/block/%v", conf.AppUrl, tx.BlockHash))
 		}
 		r.JSON(200, tx)
 	})
@@ -443,13 +443,13 @@ Options:
 		currentPage, _ := strconv.Atoi(currentPageStr)
 		// HATEOS section
 		addressdata.Links = initHATEOAS(addressdata.Links, req)
-		pageurl := "/api/address/%v?page=%v"
+		pageurl := "%v/api/address/%v?page=%v"
 		if currentPage < lastPage {
-			addressdata.Links = addHATEOAS(addressdata.Links, "last", fmt.Sprintf(pageurl, params["address"], lastPage))
-			addressdata.Links = addHATEOAS(addressdata.Links, "next", fmt.Sprintf(pageurl, params["address"], currentPage+1))
+			addressdata.Links = addHATEOAS(addressdata.Links, "last", fmt.Sprintf(pageurl, conf.AppUrl, params["address"], lastPage))
+			addressdata.Links = addHATEOAS(addressdata.Links, "next", fmt.Sprintf(pageurl, conf.AppUrl, params["address"], currentPage+1))
 		}
 		if currentPage > 1 {
-			addressdata.Links = addHATEOAS(addressdata.Links, "previous", fmt.Sprintf(pageurl, params["address"], currentPage-1))
+			addressdata.Links = addHATEOAS(addressdata.Links, "previous", fmt.Sprintf(pageurl, conf.AppUrl, params["address"], currentPage-1))
 		}
 		addressdata.FetchTxs(db, txperpage*(currentPage-1), txperpage*currentPage)
 		r.JSON(200, addressdata)
