@@ -6,7 +6,7 @@ The Query API implements some of [Bitcoin Block Explorer Query API](https://bloc
 
 For this documentation, we will assume every request begins with the above path:
 
-	https://btcplex.com/api/v1/
+	https://btcplex.com/api/
 
 ## Format
 
@@ -40,7 +40,7 @@ Returns the current block height / number of blocks in the longest chain.
 	
 ### Example request
 
-	$ curl https://btcplex.com/api/v1/getblockcount
+	$ curl https://btcplex.com/api/getblockcount
 
 ### Response
 
@@ -52,7 +52,7 @@ Returns the hash of a block for the given height.
 
 ### Example request
 
-	$ curl https://btcplex.com/api/v1/getblockhash/233943
+	$ curl https://btcplex.com/api/getblockhash/233943
 
 ### Response
 
@@ -65,7 +65,7 @@ Returns the hash of the latest block.
 
 ### Example request
 
-	$ curl https://btcplex.com/api/v1/latesthash
+	$ curl https://btcplex.com/api/latesthash
 
 ### Response
 
@@ -77,7 +77,7 @@ Returns the total received for the given address.
 
 ### Example request
 
-	$ curl https://btcplex.com/api/v1/getreceivedbyaddress/1CjPR7Z5ZSyWk6WtXvSFgkptmpoi4UM9BC
+	$ curl https://btcplex.com/api/getreceivedbyaddress/1CjPR7Z5ZSyWk6WtXvSFgkptmpoi4UM9BC
 
 ### Response
 
@@ -89,7 +89,7 @@ Returns the total sent for the given address.
 
 ### Example request
 
-	$ curl https://btcplex.com/api/v1/getsentbyaddress/1CjPR7Z5ZSyWk6WtXvSFgkptmpoi4UM9BC
+	$ curl https://btcplex.com/api/getsentbyaddress/1CjPR7Z5ZSyWk6WtXvSFgkptmpoi4UM9BC
 
 ### Response
 
@@ -101,7 +101,7 @@ Returns getreceivedbyaddress minus getsentbyaddress for the given address.
 
 ### Example request
 
-	$ curl https://btcplex.com/api/v1/addressbalance/1CjPR7Z5ZSyWk6WtXvSFgkptmpoi4UM9BC
+	$ curl https://btcplex.com/api/addressbalance/1CjPR7Z5ZSyWk6WtXvSFgkptmpoi4UM9BC
 
 ### Response
 
@@ -113,7 +113,7 @@ Check a Bitcoin address for validity.
 
 ### Example request
 
-	$ curl https://btcplex.com/api/v1/checkaddress/19gzwTuuZDec8JZEddQUZH9kwzqkBfFtDa
+	$ curl https://btcplex.com/api/checkaddress/19gzwTuuZDec8JZEddQUZH9kwzqkBfFtDa
 
 ### Response
 

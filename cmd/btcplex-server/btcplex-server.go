@@ -339,16 +339,16 @@ Options:
 		r.HTML(200, "block", &pm)
 	})
 
-	m.Get("/api/v1/block/:hash", func(params martini.Params, r render.Render, db *redis.Pool, req *http.Request) {
+	m.Get("/api/block/:hash", func(params martini.Params, r render.Render, db *redis.Pool, req *http.Request) {
 		block, _ := btcplex.GetBlockCachedByHash(db, params["hash"])
 		block.FetchMeta(db)
 		btcplex.By(btcplex.TxIndex).Sort(block.Txs)
 		block.Links = initHATEOAS(block.Links, req)
 		if block.Parent != "" {
-			block.Links = addHATEOAS(block.Links, "previous_block", fmt.Sprintf("/api/v1/block/%v", block.Parent))
+			block.Links = addHATEOAS(block.Links, "previous_block", fmt.Sprintf("/api/block/%v", block.Parent))
 		}
 		if block.Next != "" {
-			block.Links = addHATEOAS(block.Links, "next_block", fmt.Sprintf("/api/v1/block/%v", block.Next))
+			block.Links = addHATEOAS(block.Links, "next_block", fmt.Sprintf("/api/block/%v", block.Next))
 		}
 		r.JSON(200, block)
 	})
@@ -385,7 +385,7 @@ Options:
 		pm.Analytics = conf.AppGoogleAnalytics
 		r.HTML(200, "tx", pm)
 	})
-	m.Get("/api/v1/tx/:hash", func(params martini.Params, r render.Render, db *redis.Pool, rdb *RedisWrapper, req *http.Request) {
+	m.Get("/api/tx/:hash", func(params martini.Params, r render.Render, db *redis.Pool, rdb *RedisWrapper, req *http.Request) {
 		var tx *btcplex.Tx
 		rpool := rdb.Pool
 		isutx, _ := btcplex.IsUnconfirmedTx(rpool, params["hash"])
@@ -397,7 +397,7 @@ Options:
 		}
 		tx.Links = initHATEOAS(tx.Links, req)
 		if tx.BlockHash != "" {
-			tx.Links = addHATEOAS(tx.Links, "block", fmt.Sprintf("/api/v1/block/%v", tx.BlockHash))
+			tx.Links = addHATEOAS(tx.Links, "block", fmt.Sprintf("/api/block/%v", tx.BlockHash))
 		}
 		r.JSON(200, tx)
 	})
@@ -433,7 +433,7 @@ Options:
 		addressdata.FetchTxs(db, txperpage*(pm.PaginationData.CurrentPage-1), txperpage*pm.PaginationData.CurrentPage)
 		r.HTML(200, "address", pm)
 	})
-	m.Get("/api/v1/address/:address", func(params martini.Params, r render.Render, db *redis.Pool, req *http.Request) {
+	m.Get("/api/address/:address", func(params martini.Params, r render.Render, db *redis.Pool, req *http.Request) {
 		addressdata, _ := btcplex.GetAddress(db, params["address"])
 		lastPage := int(math.Ceil(float64(addressdata.TxCnt) / float64(txperpage)))
 		currentPageStr := req.URL.Query().Get("page")
@@ -443,7 +443,7 @@ Options:
 		currentPage, _ := strconv.Atoi(currentPageStr)
 		// HATEOS section
 		addressdata.Links = initHATEOAS(addressdata.Links, req)
-		pageurl := "/api/v1/address/%v?page=%v"
+		pageurl := "/api/address/%v?page=%v"
 		if currentPage < lastPage {
 			addressdata.Links = addHATEOAS(addressdata.Links, "last", fmt.Sprintf(pageurl, params["address"], lastPage))
 			addressdata.Links = addHATEOAS(addressdata.Links, "next", fmt.Sprintf(pageurl, params["address"], currentPage+1))
@@ -498,41 +498,41 @@ Options:
 		r.HTML(200, "search", pm)
 	})
 
-	m.Get("/api/v1/getblockcount", func(r render.Render) {
+	m.Get("/api/getblockcount", func(r render.Render) {
 		r.JSON(200, latestheight)
 	})
 
-//	m.Get("/api/v1/latesthash", func(r render.Render) {
+//	m.Get("/api/latesthash", func(r render.Render) {
 //		r.JSON(200, latesthash)
 //	})
 
-	m.Get("/api/v1/getblockhash/:height", func(r render.Render, params martini.Params, db *redis.Pool) {
+	m.Get("/api/getblockhash/:height", func(r render.Render, params martini.Params, db *redis.Pool) {
 		height, _ := strconv.ParseUint(params["height"], 10, 0)
 		blockhash, _ := btcplex.GetBlockHash(db, uint(height))
 		r.JSON(200, blockhash)
 	})
 
-	m.Get("/api/v1/getreceivedbyaddress/:address", func(r render.Render, params martini.Params, db *redis.Pool) {
+	m.Get("/api/getreceivedbyaddress/:address", func(r render.Render, params martini.Params, db *redis.Pool) {
 		res, _ := btcplex.GetReceivedByAddress(db, params["address"])
 		r.JSON(200, res)
 	})
 
-	m.Get("/api/v1/getsentbyaddress/:address", func(r render.Render, params martini.Params, db *redis.Pool) {
+	m.Get("/api/getsentbyaddress/:address", func(r render.Render, params martini.Params, db *redis.Pool) {
 		res, _ := btcplex.GetSentByAddress(db, params["address"])
 		r.JSON(200, res)
 	})
 
-	m.Get("/api/v1/addressbalance/:address", func(r render.Render, params martini.Params, db *redis.Pool) {
+	m.Get("/api/addressbalance/:address", func(r render.Render, params martini.Params, db *redis.Pool) {
 		res, _ := btcplex.AddressBalance(db, params["address"])
 		r.JSON(200, res)
 	})
 
-	m.Get("/api/v1/checkaddress/:address", func(params martini.Params, r render.Render) {
+	m.Get("/api/checkaddress/:address", func(params martini.Params, r render.Render) {
 		valid, _ := btcplex.ValidA58([]byte(params["address"]))
 		r.JSON(200, valid)
 	})
 
-	m.Get("/api/v1/blocknotify", func(w http.ResponseWriter, r *http.Request) {
+	m.Get("/api/blocknotify", func(w http.ResponseWriter, r *http.Request) {
 		running := true
 		notifier := w.(http.CloseNotifier).CloseNotify()
 		timer := time.NewTimer(time.Second * 1800)

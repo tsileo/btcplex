@@ -6,7 +6,7 @@ The REST API..
 
 For this documentation, we will assume every request begins with the above path:
 
-	https://btcplex.com/api/v1/
+	https://btcplex.com/api/
 
 ## Format
 
@@ -49,7 +49,7 @@ Return block details along with transactions.
 ### Example request
 
 
-	$ curl https://btcplex.com/api/v1/block/000000000000170b01901a691a88d0bc1cde49fe32675d920039540613e3f2d7
+	$ curl https://btcplex.com/api/block/000000000000170b01901a691a88d0bc1cde49fe32675d920039540613e3f2d7
 
 
 ### Response
@@ -148,7 +148,7 @@ Returns tx data.
 
 ### Example request
 
-	$ curl https://btcplex.com/api/v1/tx/79e6e7fa17c8aaf41ca8e0bed7e8bcc27247c50ff6a00bb99c5c3a0da1803412
+	$ curl https://btcplex.com/api/tx/79e6e7fa17c8aaf41ca8e0bed7e8bcc27247c50ff6a00bb99c5c3a0da1803412
 
 ### Response
 
@@ -156,7 +156,7 @@ Returns tx data.
 {
   "_links": {
     "self": {
-      "href": "/api/v1/tx/79e6e7fa17c8aaf41ca8e0bed7e8bcc27247c50ff6a00bb99c5c3a0da1803412"
+      "href": "/api/tx/79e6e7fa17c8aaf41ca8e0bed7e8bcc27247c50ff6a00bb99c5c3a0da1803412"
     }
   }, 
   "block_hash": "", 
@@ -219,7 +219,7 @@ Returns address summary with relevant transactions.
 
 ### Example request
 
-	$ curl https://btcplex.com/api/v1/address/19gzwTuuZDec8JZEddQUZH9kwzqkBfFtDa
+	$ curl https://btcplex.com/api/address/19gzwTuuZDec8JZEddQUZH9kwzqkBfFtDa
 
 ### Response
 
@@ -227,7 +227,7 @@ Returns address summary with relevant transactions.
 {
   "_links": {
     "self": {
-      "href": "/api/v1/address/19gzwTuuZDec8JZEddQUZH9kwzqkBfFtDa"
+      "href": "/api/address/19gzwTuuZDec8JZEddQUZH9kwzqkBfFtDa"
     }
   }, 
   "address": "19gzwTuuZDec8JZEddQUZH9kwzqkBfFtDa", 

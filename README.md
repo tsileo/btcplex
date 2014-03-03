@@ -51,6 +51,7 @@ Some features that are on my TODO list:
 - An official Python module to interact with the API and offer a reliable way to track address
 - An official JS lib to interact with the API
 - A Watch-only addresses page
+- Display unconfirmed transactions on address page
 - Live notification on a unconfirmed transaction page when it actually get included in a block
 - Parse the coinbase to extract which pool mined the block
 - An admin interface to monitor bitcoind/BTCplex

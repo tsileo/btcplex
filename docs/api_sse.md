@@ -8,7 +8,7 @@ You can consume server-sent events using [Javascript](https://developer.mozilla.
 
 For this documentation, we will assume every request begins with the above path:
 
-	https://btcplex.com/api/v1/
+	https://btcplex.com/api/
 
 ## Format
 
@@ -43,7 +43,7 @@ Get the new best block hash when it changes.
 ### Example
 
 ```javascript
-var blocknotify = new EventSource("https://btcplex.com/api/v1/blocknotify");
+var blocknotify = new EventSource("https://btcplex.com/api/blocknotify");
 blocknotify.onmessage = function(e) {
 	console.log("New best block hash: " + e.data);
 }
