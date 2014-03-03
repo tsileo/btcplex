@@ -27,14 +27,23 @@ Assuming you have:
 
 You will also need to export ``CGO_LDFLAGS``, needed to install [levigo](https://github.com/jmhodges/levigo).
 
-
     $ git clone https://github.com/tsileo/btcplex.git
     $ cd btcplex
     $ export CGO_LDFLAGS="-L/usr/local/lib -L/usr/local/lib -lsnappy"
     $ ./build.sh
     $ cp -r config.sample.json config.json
     $ vim config.json
+
+Start the initial import (the example use nohup, but you should use a tool like [supervisord](http://supervisord.org/)):
+
     $ nohup ./bin/btcplex-import > import.log&
+
+And once the process is done, you will have to restart you bitcoind with the ``-blocknotify``` parameter: ``-blocknotify="/home/thomas/btcplex/bin/btcplex-blocknotify -c /home/thomas/btcplex/config.json %s"``. Now you can start ``btcplex-prod``:
+
+    $ nohup ./bin/btcplex-prod > prod.log&
+
+Even while importing, you can start the webserver:
+
     $ ./bin/btcplex-server
 
 
@@ -58,6 +67,7 @@ Some features that are on my TODO list:
 - New SSE endoind: utxin/utxout for a given address
 - Escrow transaction handling
 - Docker build
+- Provides supervisord config
 - ... (don't hesitate to request features!)
 
 ## Documentation
