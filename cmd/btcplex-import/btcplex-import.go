@@ -172,8 +172,7 @@ func main() {
 
 		bl, er := blockchain.NextBlock()
 		if er != nil {
-			wg.Wait()
-			log.Println("END of DB file")
+			log.Println("Initial import done.")
 			break
 		}
 
