@@ -36,10 +36,15 @@ The API supports Cross Origin Resource Sharing (CORS) allowing you to make AJAX 
 
 All endpoints are listed here:
 
-## GET 
+## GET /blocknotify
 
-Returns the current block height / number of blocks in the longest chain.
-	
+Get the new best block hash when it changes.
+
 ### Example
 
-  $ curl https://btcplex.com/api/v1/getblockcount
+```javascript
+var blocknotify = new EventSource("https://btcplex.com/api/v1/blocknotify");
+blocknotify.onmessage = function(e) {
+	console.log("New best block hash: " + e.data);
+}
+```
