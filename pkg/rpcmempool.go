@@ -81,7 +81,7 @@ func ProcessUnconfirmedTxs(conf *Config, pool *redis.Pool, running *bool) {
 			c.Do("DEL", redis.Args{}.Add(lastkey).AddFlat(dkeys)...)
 			c.Do("ZREM", redis.Args{}.Add("btcplex:rawmempool").AddFlat(dkeys)...)
 			// Since getrawmempool return transaction sorted by name, we replay them sorted by time asc
-			newkeys, _ := redis.Strings(c.Do("ZRANGEBYSCORE", "btcplex:rawmempool", lastts, cts))
+			newkeys, _ := redis.Strings(c.Do("ZRANGEBYSCORE", "btcplex:rawmempool", fmt.Sprintf("(%v", lastts), cts))
 			for _, newkey := range newkeys {
 				txjson, _ := redis.String(c.Do("GET", newkey))
 				// Notify SSE unconfirmed transactions
