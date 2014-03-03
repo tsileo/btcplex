@@ -109,7 +109,7 @@ func addHATEOAS(links map[string]map[string]string, key string, link string) map
 
 func initHATEOAS(links map[string]map[string]string, req *http.Request) map[string]map[string]string {
 	links = map[string]map[string]string{}
-	return addHATEOAS(links, "self", req.URL.String())
+	return addHATEOAS(links, "self", fmt.Sprintf("%v%v", conf.AppUrl, req.URL.String()))
 }
 
 func N(n int) []struct{} {
