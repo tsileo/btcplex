@@ -567,6 +567,88 @@ Options:
 		}
 	})
 
+	m.Get("/api/utxs/:address", func(w http.ResponseWriter, params martini.Params, r *http.Request, rdb *RedisWrapper) {
+		rpool := rdb.Pool
+		running := true
+		notifier := w.(http.CloseNotifier).CloseNotify()
+		timer := time.NewTimer(time.Second * 3600)
+
+		f, _ := w.(http.Flusher)
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+
+		utxs := make(chan string)
+		go func(rpool *redis.Pool, utxs chan<- string) {
+			conn := rpool.Get()
+			defer conn.Close()
+			psc := redis.PubSubConn{Conn: conn}
+			psc.Subscribe(fmt.Sprintf("addr:%v:txs", params["address"]))
+			for {
+				switch v := psc.Receive().(type) {
+				case redis.Message:
+					utxs <- string(v.Data)
+				}
+			}
+		}(rpool, utxs)
+		
+		var ls string
+		for {
+			if running {
+				select {
+				case ls = <-utxs:
+					io.WriteString(w, fmt.Sprintf("data: %v\n\n", ls))
+					f.Flush()
+				case <-notifier:
+					running = false
+					log.Println("CLOSED")
+					break
+				case <-timer.C:
+					running = false
+					log.Println("TimeOUT")
+				}
+			} else {
+				log.Println("DONE")
+				break
+			}
+		}
+	})
+
+	m.Get("/api/utxs", func(w http.ResponseWriter, r *http.Request) {
+		running := true
+		notifier := w.(http.CloseNotifier).CloseNotify()
+		timer := time.NewTimer(time.Second * 3600)
+
+		f, _ := w.(http.Flusher)
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+
+		utx := utxgroup.Join()
+		defer utx.Close()
+
+		var ls interface{}
+		for {
+			if running {
+				select {
+				case ls = <-utx.In:
+					io.WriteString(w, fmt.Sprintf("data: %v\n\n", ls.(string)))
+					f.Flush()
+				case <-notifier:
+					running = false
+					log.Println("CLOSED")
+					break
+				case <-timer.C:
+					running = false
+					log.Println("TimeOUT")
+				}
+			} else {
+				log.Println("DONE")
+				break
+			}
+		}
+	})
+
 	m.Get("/events", func(w http.ResponseWriter, r *http.Request) {
 		running := true
 		notifier := w.(http.CloseNotifier).CloseNotify()

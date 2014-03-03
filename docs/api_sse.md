@@ -48,3 +48,32 @@ blocknotify.onmessage = function(e) {
 	console.log("New best block hash: " + e.data);
 }
 ```
+
+## GET /utxs
+
+Get the unconfirmed transactions stream.
+
+### Example
+
+```javascript
+var blocknotify = new EventSource("https://btcplex.com/api/utxs");
+blocknotify.onmessage = function(e) {
+	var data = JSON.parse(e.data);
+	console.log("New unconfirmed tx: " + data);
+}
+```
+
+## GET /utxs/:address
+
+Get the unconfirmed transactions stream involving the given address.
+
+### Example
+
+```javascript
+var address = "1dice6gJgPDYz8PLQyJb8cgPBnmWqCSuF";
+var blocknotify = new EventSource("https://btcplex.com/api/utxs/" + address);
+blocknotify.onmessage = function(e) {
+	var data = JSON.parse(e.data);
+	console.log("New unconfirmed tx involving " + address + ": " + data);
+}
+```

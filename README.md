@@ -55,6 +55,7 @@ Some features that are on my TODO list:
 - Live notification on a unconfirmed transaction page when it actually get included in a block
 - Parse the coinbase to extract which pool mined the block
 - An admin interface to monitor bitcoind/BTCplex
+- New SSE endoind: utxin/utxout for a given address
 - Escrow transaction handling
 - Docker build
 - ... (don't hesitate to request features!)
