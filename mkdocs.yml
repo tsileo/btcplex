@@ -6,4 +6,6 @@ pages:
 - [index.md, Home]
 - [HACKING.md, Hacking]
 - [DESIGN.md, Design]
+- [api_rest.md, API, REST API]
+- [api_query.md, API, Query API]
 - [api_sse.md, API, Server-Sent Events API]

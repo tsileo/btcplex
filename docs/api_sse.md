@@ -8,7 +8,7 @@ You can consume server-sent events using [Javascript](https://developer.mozilla.
 
 For this documentation, we will assume every request begins with the above path:
 
-  https://btcplex.com/api/v1/
+	https://btcplex.com/api/v1/
 
 ## Format
 
@@ -22,6 +22,10 @@ The rate limit allows you to make **3600 requests per hour** and implements the 
 - ``X-RateLimit-Remaining`` The number of requests remaining in the current window.
 - ``X-RateLimit-Reset`` The time (in UTC epoch seconds) at which the rate limit window resets.
 
+## Cross Origin Resource Sharing
+
+The API supports Cross Origin Resource Sharing (CORS) allowing you to make AJAX requests from anywhere.
+
 ## Status Codes
 
 - **200 OK** Response to a successful request.
@@ -32,14 +36,10 @@ The rate limit allows you to make **3600 requests per hour** and implements the 
 
 All endpoints are listed here:
 
-## GET /getblockcount
+## GET 
 
 Returns the current block height / number of blocks in the longest chain.
 	
-### Example request
+### Example
 
   $ curl https://btcplex.com/api/v1/getblockcount
-
-### Response
-
-  275120

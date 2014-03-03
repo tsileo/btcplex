@@ -13,7 +13,7 @@ BTCplex is an open source [Bitcoin](http://bitcoin.org/) block chain browser wri
 - [LevelDB](https://code.google.com/p/leveldb/)
 - 150+GB disk space / 4+GB RAM
 
-Building BTCplex database takes **1 week and few days** on a small server (dual core 1.2GHz/6GB RAM) and **28 hours** on a more powerful server (i5/16GB RAM).
+Building BTCplex database takes **1+ week** on a small server (dual core 1.2GHz/6GB RAM) and **28 hours** on a more powerful server (i5/16GB RAM).
 
 ## Installation
 
@@ -42,7 +42,6 @@ You will also need to export ``CGO_LDFLAGS``, needed to install [levigo](https:/
 
 - Stabilize everything for 1.0 release.
 - Make sure a transaction can't be processed multiples times
-- Make transaction reversible (when a block become orphaned)
 - A receive payment API
 
 Some features that are on my TODO list:
