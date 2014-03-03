@@ -84,6 +84,7 @@ And one hash per block (``block:%v:h`` (hash)) containing the following keys:
 - ``main`` -> Boolean, false if the block is orphaned
 - ``next`` -> Hash of the next block, if any
 - ``parent`` -> Hash of the previous block
+- ``height`` -> Block height
 
 
 ### Sorted Sets
