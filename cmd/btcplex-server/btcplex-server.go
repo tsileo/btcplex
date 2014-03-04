@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"sync"
 
 	"github.com/codegangsta/martini"
 	"github.com/codegangsta/martini-contrib/binding"
@@ -66,6 +67,26 @@ const (
 	txperpage = 20
 )
 
+var conf *btcplex.Config;
+
+// Keep track of the number of active SSE client
+var activeclientsmutex sync.Mutex;
+var activeclients uint;
+
+func incrementClient() {
+	activeclientsmutex.Lock()
+	defer activeclientsmutex.Unlock()
+
+	activeclients++
+}
+
+func decrementClient() {
+	activeclientsmutex.Lock()
+	defer activeclientsmutex.Unlock()
+
+	activeclients--
+}
+
 // Used to rate-limit the API
 func rateLimited(rediswrapper *RedisWrapper, ip string) (bool, int, int) {
 	conn := rediswrapper.Pool.Get()
@@ -115,8 +136,6 @@ func initHATEOAS(links map[string]map[string]string, req *http.Request) map[stri
 func N(n int) []struct{} {
 	return make([]struct{}, n)
 }
-
-var conf *btcplex.Config;
 
 func main() {
 	var err error
@@ -535,6 +554,8 @@ Options:
 	})
 
 	m.Get("/api/blocknotify", func(w http.ResponseWriter, r *http.Request) {
+		incrementClient()
+		defer decrementClient()
 		running := true
 		notifier := w.(http.CloseNotifier).CloseNotify()
 		timer := time.NewTimer(time.Second * 1800)
@@ -570,6 +591,8 @@ Options:
 	})
 
 	m.Get("/api/utxs/:address", func(w http.ResponseWriter, params martini.Params, r *http.Request, rdb *RedisWrapper) {
+		incrementClient()
+		defer decrementClient()
 		rpool := rdb.Pool
 		running := true
 		notifier := w.(http.CloseNotifier).CloseNotify()
@@ -617,6 +640,8 @@ Options:
 	})
 
 	m.Get("/api/utxs", func(w http.ResponseWriter, r *http.Request) {
+		incrementClient()
+		defer decrementClient()
 		running := true
 		notifier := w.(http.CloseNotifier).CloseNotify()
 		timer := time.NewTimer(time.Second * 3600)
@@ -740,6 +765,12 @@ Options:
 				break
 			}
 		}
+	})
+	
+	m.Get("/api/stats", func(r render.Render) {
+		activeclientsmutex.Lock()
+		defer activeclientsmutex.Unlock()
+		r.JSON(200, map[string]interface{}{"activeclients": activeclients})
 	})
 
 	log.Printf("Listening on port: %v\n", conf.AppPort)
