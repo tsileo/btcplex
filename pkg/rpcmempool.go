@@ -48,7 +48,7 @@ func ProcessUnconfirmedTxs(conf *Config, pool *redis.Pool, running *bool) {
 		for _, txid := range unconfirmedtxs {
 			wg.Add(1)
 			sem <- true
-			go func(pool *redis.Pool, txid string, unconfirmedtxsverbose *map[string]interface{}) {
+			go func(pool *redis.Pool, txid string, unconfirmedtxsverbose *map[string]interface{}, ckey string) {
 				c := pool.Get()
 				defer c.Close()
 				defer wg.Done()
@@ -71,7 +71,7 @@ func ProcessUnconfirmedTxs(conf *Config, pool *redis.Pool, running *bool) {
 					// Put the TX in a snapshot do detect deleted tx
 					c.Do("SADD", ckey, txkey)
 				}
-			}(pool, txid, &unconfirmedtxsverbose)
+			}(pool, txid, &unconfirmedtxsverbose, ckey)
 		}
 		wg.Wait()
 		if lastkey != "" {
