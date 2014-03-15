@@ -39,7 +39,7 @@ func ProcessUnconfirmedTxs(conf *Config, pool *redis.Pool, running *bool) {
 		cts = time.Now().UTC().Unix()
 		ckey = fmt.Sprintf("btcplex:rawmempool:%v", cts)
 
-		//log.Printf("lastkey:%+v, ckey:%+v\n", lastkey, ckey)
+		log.Printf("lastkey:%+v, ckey:%+v\n", lastkey, ckey)
 
 		// Call bitcoind RPC
 		unconfirmedtxsverbose, _ := GetRawMemPoolVerboseRPC(conf)
@@ -77,21 +77,26 @@ func ProcessUnconfirmedTxs(conf *Config, pool *redis.Pool, running *bool) {
 		if lastkey != "" {
 			// We remove tx that are no longer in the pool using the last snapshot
 			dkeys, _ := redis.Strings(c.Do("SDIFF", lastkey, ckey))
-			//log.Printf("Deleting %v utxs\n", len(dkeys))
-			c.Do("DEL", redis.Args{}.Add(lastkey).AddFlat(dkeys)...)
+			log.Printf("Deleting %v utxs\n", len(dkeys))
+			c.Do("DEL", redis.Args{}.AddFlat(dkeys)...)
 			c.Do("ZREM", redis.Args{}.Add("btcplex:rawmempool").AddFlat(dkeys)...)
+			c.Do("DEL", lastkey)
 			// Since getrawmempool return transaction sorted by name, we replay them sorted by time asc
 			newkeys, _ := redis.Strings(c.Do("ZRANGEBYSCORE", "btcplex:rawmempool", fmt.Sprintf("(%v", lastts), cts))
 			for _, newkey := range newkeys {
 				txjson, _ := redis.String(c.Do("GET", newkey))
-				// Notify SSE unconfirmed transactions
-				c.Do("PUBLISH", "btcplex:utxs", txjson)
 				ctx := new(Tx)
-				json.Unmarshal([]byte(txjson), ctx)
-				// Notify transaction to every channel address
-				multiPublishScript.Do(c, redis.Args{}.Add(txjson).AddFlat(ctx.AddressesChannels())...)
-				c.Do("SETEX", fmt.Sprintf("btcplex:utx:%v:published", ctx.Hash), 3600*20, cts)
-				//c.Do("SADD", "btcplex:utxs:published", ctx.Hash)
+				json.Unmarshal([]byte(txjson), ctx)	
+				// Notify SSE unconfirmed transactions
+				alreadypublished, _ := redis.Bool(c.Do("EXISTS", fmt.Sprintf("btcplex:utx:%v:published", ctx.Hash)))
+				if !alreadypublished {
+					c.Do("PUBLISH", "btcplex:utxs", txjson)
+					// Notify transaction to every channel address
+					multiPublishScript.Do(c, redis.Args{}.Add(txjson).AddFlat(ctx.AddressesChannels())...)
+					c.Do("SETEX", fmt.Sprintf("btcplex:utx:%v:published", ctx.Hash), 3600*20, cts)
+					//c.Do("SADD", "btcplex:utxs:published", ctx.Hash)	
+				}
+				
 			}
 		} else {
 			log.Println("ProcessUnconfirmedTxs first round done")
