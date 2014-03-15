@@ -39,7 +39,7 @@ func ProcessUnconfirmedTxs(conf *Config, pool *redis.Pool, running *bool) {
 		cts = time.Now().UTC().Unix()
 		ckey = fmt.Sprintf("btcplex:rawmempool:%v", cts)
 
-		log.Printf("lastkey:%+v, ckey:%+v\n", lastkey, ckey)
+		//log.Printf("lastkey:%+v, ckey:%+v\n", lastkey, ckey)
 
 		// Call bitcoind RPC
 		unconfirmedtxsverbose, _ := GetRawMemPoolVerboseRPC(conf)
@@ -77,10 +77,10 @@ func ProcessUnconfirmedTxs(conf *Config, pool *redis.Pool, running *bool) {
 		if lastkey != "" {
 			// We remove tx that are no longer in the pool using the last snapshot
 			dkeys, _ := redis.Strings(c.Do("SDIFF", lastkey, ckey))
-			log.Printf("Deleting %v utxs\n", len(dkeys))
+			//log.Printf("Deleting %v utxs\n", len(dkeys))
 			c.Do("DEL", redis.Args{}.AddFlat(dkeys)...)
 			c.Do("ZREM", redis.Args{}.Add("btcplex:rawmempool").AddFlat(dkeys)...)
-			//c.Do("DEL", lastkey)
+			c.Do("DEL", lastkey)
 			// Since getrawmempool return transaction sorted by name, we replay them sorted by time asc
 			newkeys, _ := redis.Strings(c.Do("ZRANGEBYSCORE", "btcplex:rawmempool", fmt.Sprintf("(%v", lastts), cts))
 			for _, newkey := range newkeys {
