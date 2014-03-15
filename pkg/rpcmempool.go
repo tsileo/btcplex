@@ -80,7 +80,7 @@ func ProcessUnconfirmedTxs(conf *Config, pool *redis.Pool, running *bool) {
 			log.Printf("Deleting %v utxs\n", len(dkeys))
 			c.Do("DEL", redis.Args{}.AddFlat(dkeys)...)
 			c.Do("ZREM", redis.Args{}.Add("btcplex:rawmempool").AddFlat(dkeys)...)
-			c.Do("DEL", lastkey)
+			//c.Do("DEL", lastkey)
 			// Since getrawmempool return transaction sorted by name, we replay them sorted by time asc
 			newkeys, _ := redis.Strings(c.Do("ZRANGEBYSCORE", "btcplex:rawmempool", fmt.Sprintf("(%v", lastts), cts))
 			for _, newkey := range newkeys {
