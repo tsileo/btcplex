@@ -103,7 +103,7 @@ func ProcessUnconfirmedTxs(conf *Config, pool *redis.Pool, running *bool) {
 		}
 		lastkey = ckey
 		lastts = cts
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(1 * time.Second)
 	}
 }
 
