@@ -487,7 +487,7 @@ Options:
 		pm := new(pageMeta)
 		pm.LastHeight = uint(latestheight)
 		pm.Title = "About"
-		pm.Description = "Learn more about BTCPlex, an open source Bitcoin block chain explorer with JSON API"
+		pm.Description = "Learn more about BTCPlex, an open source Bitcoin blockchain browser written in Go."
 		pm.Menu = "about"
 		pm.Analytics = conf.AppGoogleAnalytics
 		r.HTML(200, "about", pm)
