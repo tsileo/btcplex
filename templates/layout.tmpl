@@ -95,7 +95,7 @@
           <ul class="nav navbar-nav navbar-right visible-md visible-lg">
             <li><p class="navbar-text" style="background:#006687;border-radius:5px;padding:5px 10px;margin-top:7px;margin-bottom:7px;">{{if .BtcplexSynced}}<i data-toggle="tooltip" data-placement="bottom" title="Up to date" class="glyphicon glyphicon-ok ttip"></i>{{else}}
             <i data-toggle="tooltip" data-placement="bottom" title="Out of sync" class="glyphicon glyphicon-warning-sign ttip"></i>
-            {{end}}&nbsp; · &nbsp;Height: <strong>#{{.LastHeight}}</strong></p></li>
+            {{end}}&nbsp; · &nbsp;Height: <strong id="lastheight">#{{.LastHeight}}</strong></p></li>
           </ul>
 <!--
 <ul class="nav navbar-nav navbar-right">
@@ -163,6 +163,7 @@
       source.onmessage = function(e) {
         var data = JSON.parse(e.data);
         $('#latest_blocks tbody').prepend('<tr><td>'+data.height+'</td><td><a href="/block/'+data.hash+'" class="hash">'+data.hash+'</a></td><td>'+BTCplex.helpers.formatutc(new Date(data.time*1000))+' (<time datetime="'+new Date(data.time * 1000).toISOString()+'"></time>)</td><td>'+data.n_tx+'</td><td>'+(data.total_out / 1e8).toFixed(8)+'</td><td>'+(data.size/1024).toFixed(3)+'</td></tr>');
+        $('#lastheight').html(data.height);
         if ($('#latest_blocks tbody tr').size() > 50) {
           $('#latest_blocks tbody tr').last().remove();
         }
