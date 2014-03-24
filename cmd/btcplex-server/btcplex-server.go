@@ -47,6 +47,7 @@ type pageMeta struct {
 	Price          float64
 	PaginationData *PaginationData
 	Analytics		string
+	BtcplexSynced   bool
 }
 
 type PaginationData struct {
@@ -65,6 +66,7 @@ const (
 	ratelimitwindow = 3600
 	ratelimitcnt    = 3600
 	txperpage = 20
+	synctimeout = 60 * 8
 )
 
 var conf *btcplex.Config;
@@ -193,7 +195,12 @@ Options:
 		}
 	}(pool, &utxscnt)
 
+	// Pool the latest height from BTCplex db,
+	// also track the status/check if BTCplex goes out of sync
 	latestheightticker := time.NewTicker(1 * time.Second)
+	checkinprogress := false
+	bitcoindheight := btcplex.GetBlockCountRPC(conf)
+	btcplexsynced := true
 	go func(pool *redis.Pool, latestheight *int) {
 		c := pool.Get()
 		defer c.Close()
@@ -205,6 +212,29 @@ Options:
 				blocks, _ := btcplex.GetLastXBlocks(ssdb, uint(*latestheight), uint(*latestheight-30))
 				blockscached = &blocks
 				latestheightcache = *latestheight
+			}
+
+			bitcoindheight = btcplex.GetBlockCountRPC(conf)
+			if uint(latestheightcache) != bitcoindheight && !checkinprogress && btcplexsynced {
+				checkinprogress = true
+				go func(checkinprogress *bool) {
+					if bitcoindheight - uint(latestheightcache) > 20 {
+						btcplexsynced = false
+						log.Printf("CRITICAL: OUT OF SYNC / btcplex:%v, bitcoind:%v\n", latestheightcache, bitcoindheight)
+					} else {
+						log.Println("WARNING: BTCplex Out of sync, waiting before another check")
+						time.Sleep(synctimeout * time.Second)
+						if btcplexsynced && uint(latestheightcache) != bitcoindheight {
+							btcplexsynced = false
+							log.Printf("CRITICAL: OUT OF SYNC / btcplex:%v, bitcoind:%v\n", latestheightcache, bitcoindheight)
+						}
+					}
+					*checkinprogress = false
+				}(&checkinprogress)
+			}
+			if uint(latestheightcache) == bitcoindheight && !btcplexsynced {
+				log.Println("INFO: Sync with bitcoind done")
+				btcplexsynced = true
 			}
 		}
 	}(ssdb, &latestheight)
@@ -223,6 +253,9 @@ Options:
 	newblockgroup := bcast.NewGroup()
 	go newblockgroup.Broadcasting(0)
 	go bcastToRedisPubSub(pool, newblockgroup, "btcplex:newblock")
+
+	btcplexsyncedgroup := bcast.NewGroup()
+	go btcplexsyncedgroup.Broadcasting(0)
 
 	// Go template helper
 	appHelpers := template.FuncMap{
@@ -332,6 +365,7 @@ Options:
 
 	m.Get("/", func(r render.Render, db *redis.Pool) {
 		pm := new(pageMeta)
+		pm.BtcplexSynced = btcplexsynced
 		pm.Blocks = blockscached
 		pm.Title = "Latest Bitcoin blocks"
 		pm.Description = "Open source Bitcoin block chain explorer with JSON API"
@@ -343,6 +377,7 @@ Options:
 
 	m.Get("/blocks/:currentheight", func(params martini.Params, r render.Render, db *redis.Pool) {
 		pm := new(pageMeta)
+		pm.BtcplexSynced = btcplexsynced
 		currentheight, _ := strconv.ParseUint(params["currentheight"], 10, 0)
 		blocks, _ := btcplex.GetLastXBlocks(db, uint(currentheight), uint(currentheight-30))
 		pm.Blocks = &blocks
@@ -356,6 +391,7 @@ Options:
 
 	m.Get("/block/:hash", func(params martini.Params, r render.Render, db *redis.Pool) {
 		pm := new(pageMeta)
+		pm.BtcplexSynced = btcplexsynced
 		pm.LastHeight = uint(latestheight)
 		block, _ := btcplex.GetBlockCachedByHash(db, params["hash"])
 		block.FetchMeta(db)
@@ -384,6 +420,7 @@ Options:
 	m.Get("/unconfirmed-transactions", func(params martini.Params, r render.Render, db *redis.Pool, rdb *RedisWrapper) {
 		//rpool := rdb.Pool
 		pm := new(pageMeta)
+		pm.BtcplexSynced = btcplexsynced
 		pm.LastHeight = uint(latestheight)
 		pm.Menu = "utxs"
 		pm.Title = "Unconfirmed transactions"
@@ -398,6 +435,7 @@ Options:
 		var tx *btcplex.Tx
 		rpool := rdb.Pool
 		pm := new(pageMeta)
+		pm.BtcplexSynced = btcplexsynced
 		pm.LastHeight = uint(latestheight)
 		isutx, _ := btcplex.IsUnconfirmedTx(rpool, params["hash"])
 		if isutx {
@@ -432,6 +470,7 @@ Options:
 
 	m.Get("/address/:address", func(params martini.Params, r render.Render, db *redis.Pool, req *http.Request) {
 		pm := new(pageMeta)
+		pm.BtcplexSynced = btcplexsynced
 		pm.LastHeight = uint(latestheight)
 		pm.PaginationData = new(PaginationData)
 		pm.Title = fmt.Sprintf("Bitcoin address %v", params["address"])
@@ -485,6 +524,7 @@ Options:
 
 	m.Get("/about", func(r render.Render) {
 		pm := new(pageMeta)
+		pm.BtcplexSynced = btcplexsynced
 		pm.LastHeight = uint(latestheight)
 		pm.Title = "About"
 		pm.Description = "Learn more about BTCPlex, an open source Bitcoin blockchain browser written in Go."
@@ -496,6 +536,7 @@ Options:
 	m.Post("/search", binding.Form(searchForm{}), binding.ErrorHandler, func(search searchForm, r render.Render, db *redis.Pool, rdb *RedisWrapper) {
 		rpool := rdb.Pool
 		pm := new(pageMeta)
+		pm.BtcplexSynced = btcplexsynced
 		// Check if the query isa block height
 		isblockheight, hash := btcplex.IsBlockHeight(db, search.Query)
 		if isblockheight && hash != "" {

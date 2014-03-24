@@ -92,13 +92,18 @@
   </div>
 </form>
 
-
+          <ul class="nav navbar-nav navbar-right visible-md visible-lg">
+            <li><p class="navbar-text" style="background:#006687;border-radius:5px;padding:5px 10px;margin-top:7px;margin-bottom:7px;">{{if .BtcplexSynced}}<i data-toggle="tooltip" data-placement="bottom" title="Up to date" class="glyphicon glyphicon-ok ttip"></i>{{else}}
+            <i data-toggle="tooltip" data-placement="bottom" title="Out of sync" class="glyphicon glyphicon-warning-sign ttip"></i>
+            {{end}}&nbsp; · &nbsp;Height: <strong>#{{.LastHeight}}</strong></p></li>
+          </ul>
+<!--
 <ul class="nav navbar-nav navbar-right">
             {{if .Price}}
             <li><p class="navbar-text">1BTC = <span id="price">{{.Price}}</span>USD</p></li>
             {{end}}
           </ul>
-
+-->
         </div><!--/.nav-collapse -->
 
       </div>
@@ -132,11 +137,7 @@
     <script src="//cdnjs.cloudflare.com/ajax/libs/jquery-timeago/1.1.0/jquery.timeago.min.js"></script>
     <script type="text/javascript">
     $(function() {
-      if ($('#apiendpoints').length == 1) {
-        $(document).scroll(function() {
-          if ($(document).scrollTop() > 50) { $('#apiendpoints').css('top', '60px'); } else { $('#apiendpoints').css('top', '') };
-        })
-      };
+      $('.ttip').tooltip();
       $("time").timeago();
       if ($('#qrcode').length == 1) {
         $('#addressQRCodeModal').on('show.bs.modal', function(e) {
@@ -146,32 +147,22 @@
         });
       };
 
-
-    //var source = new EventSource('/events');
-    //source.onmessage = function(e) {
-    //  var data = JSON.parse(e.data);
-    //  if (data.t == "price") {
-    //    $.jGrowl("Price updated!");
-    //    $('#price').html(data.price);
-    //  };
-    //  if (data.t == "height") {
-    //    $.jGrowl("New block found!");
-    //  };
-    //};
-    var addzero = function(n) {
+    var BTCplex = {};
+    BTCplex.helpers = {};
+    BTCplex.helpers.addzero = function(n) {
       if (n <= 9) {
         return '0'+n
       }
       return n;
-    }
-    var formatutc = function(dd) {
-      return dd.getUTCFullYear()+'-'+addzero(dd.getUTCMonth() + 1)+'-'+addzero(dd.getUTCDate())+' '+addzero(dd.getUTCHours())+':'+addzero(dd.getUTCMinutes())+':'+addzero(dd.getUTCSeconds())+' +0000 UTC'
+    };
+    BTCplex.helpers.formatutc = function(dd) {
+      return dd.getUTCFullYear()+'-'+this.addzero(dd.getUTCMonth() + 1)+'-'+this.addzero(dd.getUTCDate())+' '+this.addzero(dd.getUTCHours())+':'+this.addzero(dd.getUTCMinutes())+':'+this.addzero(dd.getUTCSeconds())+' +0000 UTC'
     };
     if ($("#latest_blocks").length == 1) {
       var source = new EventSource('/events');
       source.onmessage = function(e) {
         var data = JSON.parse(e.data);
-        $('#latest_blocks tbody').prepend('<tr><td>'+data.height+'</td><td><a href="/block/'+data.hash+'" class="hash">'+data.hash+'</a></td><td>'+formatutc(new Date(data.time*1000))+' (<time datetime="'+new Date(data.time * 1000).toISOString()+'"></time>)</td><td>'+data.n_tx+'</td><td>'+(data.total_out / 1e8).toFixed(8)+'</td><td>'+(data.size/1024).toFixed(3)+'</td></tr>');
+        $('#latest_blocks tbody').prepend('<tr><td>'+data.height+'</td><td><a href="/block/'+data.hash+'" class="hash">'+data.hash+'</a></td><td>'+BTCplex.helpers.formatutc(new Date(data.time*1000))+' (<time datetime="'+new Date(data.time * 1000).toISOString()+'"></time>)</td><td>'+data.n_tx+'</td><td>'+(data.total_out / 1e8).toFixed(8)+'</td><td>'+(data.size/1024).toFixed(3)+'</td></tr>');
         if ($('#latest_blocks tbody tr').size() > 50) {
           $('#latest_blocks tbody tr').last().remove();
         }
