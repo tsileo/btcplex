@@ -139,7 +139,9 @@ func N(n int) []struct{} {
 
 func main() {
 	var err error
-	var latestheight int
+	var latestheight, latestheightcache int
+	var blockscached *[]*btcplex.Block
+	var blockscachemutex sync.Mutex;
 	usage := `BTCplex webapp/API server.
 
 Usage:
@@ -324,8 +326,15 @@ Options:
 
 	m.Get("/", func(r render.Render, db *redis.Pool) {
 		pm := new(pageMeta)
-		blocks, _ := btcplex.GetLastXBlocks(db, uint(latestheight), uint(latestheight-30))
-		pm.Blocks = &blocks
+		if latestheightcache != latestheight {
+			log.Println("Re-building homepage blocks cache")
+			blocks, _ := btcplex.GetLastXBlocks(db, uint(latestheight), uint(latestheight-30))
+			blockscachemutex.Lock()
+			blockscached = &blocks
+			latestheightcache = latestheight
+			blockscachemutex.Unlock()
+		}
+		pm.Blocks = blockscached
 		pm.Title = "Latest Bitcoin blocks"
 		pm.Description = "Open source Bitcoin block chain explorer with JSON API"
 		pm.Menu = "latest_blocks"
