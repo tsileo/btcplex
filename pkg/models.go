@@ -23,8 +23,8 @@ type Block struct {
 	Parent string                       `json:"prev_block"`
 	Next   string                       `json:"next_block"`
 	Links  map[string]map[string]string `json:"_links,omitempty"`
-	Meta            *BlockMeta                   `json:"-"`
-	Main bool `json:"-"`
+	Meta   *BlockMeta                   `json:"-"`
+	Main   bool                         `json:"-"`
 }
 
 type Tx struct {
@@ -87,10 +87,10 @@ type TxoSpent struct {
 }
 
 type BlockMeta struct {
-	Main	bool	`redis:"main"`
-	Next    string  `redis:"next"`
-	Parent  string  `redis:"parent"`
-	Height  int     `redis:"height"`  
+	Main   bool   `redis:"main"`
+	Next   string `redis:"next"`
+	Parent string `redis:"parent"`
+	Height int    `redis:"height"`
 }
 
 // Return block reward at the given height

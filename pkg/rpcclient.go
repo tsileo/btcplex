@@ -2,13 +2,13 @@ package btcplex
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/garyburd/redigo/redis"
 	_ "io/ioutil"
 	"log"
 	"net/http"
 	"strconv"
-	"errors"
 	"strings"
 	"sync"
 	"sync/atomic"

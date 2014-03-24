@@ -102,7 +102,7 @@ func getGOMAXPROCS() int {
 func main() {
 	fmt.Printf("GOMAXPROCS is %d\n", getGOMAXPROCS())
 	confFile := "config.json"
-		conf, err := btcplex.LoadConfig(confFile)
+	conf, err := btcplex.LoadConfig(confFile)
 	if err != nil {
 		log.Fatalf("Can't load config file: %v", err)
 	}

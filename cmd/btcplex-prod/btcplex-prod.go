@@ -71,18 +71,18 @@ Options:
 			wg.Done()
 			if done {
 				break
-			}	
+			}
 			time.Sleep(2 * time.Millisecond)
 		}
-			
+
 	}
 	log.Println("Catch up done!")
-	
+
 	go btcplex.ProcessNewBlock(conf, pool, ssdb)
 
 	conn := pool.Get()
 	defer conn.Close()
 
 	// Process unconfirmed transactions (power the unconfirmed txs page/API)
-    btcplex.ProcessUnconfirmedTxs(conf, pool, &running)
+	btcplex.ProcessUnconfirmedTxs(conf, pool, &running)
 }

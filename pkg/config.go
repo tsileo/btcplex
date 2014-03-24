@@ -12,7 +12,7 @@ type Config struct {
 	SsdbHost           string `json:"ssdb_host"`
 	RedisHost          string `json:"redis_host"`
 	LevelDbPath        string `json:"leveldb_path"`
-	AppUrl			   string `json:"app_url"`
+	AppUrl             string `json:"app_url"`
 	AppPort            uint   `json:"app_port"`
 	AppApiRateLimited  bool   `json:"app_api_rate_limited"`
 	AppTemplatesPath   string `json:"app_templates_path"`
