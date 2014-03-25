@@ -48,6 +48,7 @@ type pageMeta struct {
 	PaginationData *PaginationData
 	Analytics		string
 	BtcplexSynced   bool
+	BitcoindInfo *btcplex.BitcoindInfo
 }
 
 type PaginationData struct {
@@ -533,6 +534,19 @@ Options:
 		r.HTML(200, "about", pm)
 	})
 
+	m.Get("/status", func(r render.Render) {
+		pm := new(pageMeta)
+		pm.BtcplexSynced = btcplexsynced
+		pm.LastHeight = uint(latestheight)
+		pm.Title = "Status"
+		pm.Description = "BTCplex status page."
+		pm.Menu = "status"
+		pm.Analytics = conf.AppGoogleAnalytics
+		btcplexinfo, _ := btcplex.GetInfoRPC(conf)
+		pm.BitcoindInfo = btcplexinfo
+		r.HTML(200, "status", pm)
+	})
+
 	m.Post("/search", binding.Form(searchForm{}), binding.ErrorHandler, func(search searchForm, r render.Render, db *redis.Pool, rdb *RedisWrapper) {
 		rpool := rdb.Pool
 		pm := new(pageMeta)
@@ -815,10 +829,11 @@ Options:
 		}
 	})
 	
-	m.Get("/api/stats", func(r render.Render) {
+	m.Get("/api/info", func(r render.Render) {
 		activeclientsmutex.Lock()
 		defer activeclientsmutex.Unlock()
-		r.JSON(200, map[string]interface{}{"activeclients": activeclients})
+		btcplexinfo, _ := btcplex.GetInfoRPC(conf)
+		r.JSON(200, map[string]interface{}{"activeclients": activeclients, "info": btcplexinfo})
 	})
 
 	log.Printf("Listening on port: %v\n", conf.AppPort)

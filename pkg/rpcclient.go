@@ -70,6 +70,37 @@ func GetBlockCountRPC(conf *Config) uint {
 	return uint(count)
 }
 
+type BitcoindInfo struct {
+	Version int64 `json:"version"`
+	ProtocolVersion int64 `json:"protocolversion"`
+	Blocks int64 `json:"blocks"`
+	TimeOffset int64 `json:"timeoffset"`
+	Connections int64 `json:"connections"`
+	Proxy string `json:"proxy"`
+	Difficulty float64 `json:"difficulty"`
+	Testnet bool `json:"testnet"`
+	Errors string `json:"errors"`
+}
+
+func GetInfoRPC(conf *Config) (bitcoindinfo *BitcoindInfo, err error) {
+	bitcoindinfo = new(BitcoindInfo)
+	res, err := CallBitcoinRPC(conf.BitcoindRpcUrl, "getinfo", 1, []interface{}{})
+	if err != nil {
+		return
+	}
+	jsoninfo := res["result"].(map[string]interface{})
+	bitcoindinfo.ProtocolVersion, _ = jsoninfo["protocolversion"].(json.Number).Int64()
+	bitcoindinfo.Version, _ = jsoninfo["version"].(json.Number).Int64()
+	bitcoindinfo.Blocks, _ = jsoninfo["blocks"].(json.Number).Int64()
+	bitcoindinfo.TimeOffset, _ = jsoninfo["timeoffset"].(json.Number).Int64()
+	bitcoindinfo.Connections, _ = jsoninfo["connections"].(json.Number).Int64()
+	bitcoindinfo.Difficulty, _ = jsoninfo["difficulty"].(json.Number).Float64()
+	bitcoindinfo.Proxy = jsoninfo["proxy"].(string)
+	bitcoindinfo.Testnet = jsoninfo["testnet"].(bool)
+	bitcoindinfo.Errors = jsoninfo["errors"].(string)
+	return
+}
+
 func SaveBlockFromRPC(conf *Config, pool *redis.Pool, hash string) (block *Block, err error) {
 	c := pool.Get()
 	defer c.Close()

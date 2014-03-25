@@ -1,0 +1,40 @@
+<h2>Status</h2>
+
+<dl class="dl-horizontal">
+  <dt>BTCplex block count</dt>
+  <dd>{{.LastHeight}}</dd>
+
+  <dt>Bitcoind block count</dt>
+  <dd>{{.BitcoindInfo.Blocks}}</dd>
+</dl>
+
+<h3>Bitcoind getinfo</h3>
+
+<dl class="dl-horizontal">
+  <dt>Version</dt>
+  <dd>{{.BitcoindInfo.Version}}</dd>
+
+  <dt>Protocol version</dt>
+  <dd>{{.BitcoindInfo.ProtocolVersion}}</dd>
+
+  <dt>Blocks</dt>
+  <dd>{{.BitcoindInfo.Blocks}}</dd>
+
+  <dt>Time offset</dt>
+  <dd>{{.BitcoindInfo.TimeOffset}}</dd>
+
+  <dt>Connections</dt>
+  <dd>{{.BitcoindInfo.Connections}}</dd>
+
+  <dt>Proxy</dt>
+  <dd>{{.BitcoindInfo.Proxy}}</dd>
+
+  <dt>Difficulty</dt>
+  <dd>{{.BitcoindInfo.Difficulty}}</dd>
+
+  <dt>Testnet</dt>
+  <dd>{{.BitcoindInfo.Testnet}}</dd>
+
+  <dt>Errors</dt>
+  <dd>{{.BitcoindInfo.Errors}}</dd>
+</dl>

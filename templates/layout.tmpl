@@ -82,6 +82,7 @@
           <ul class="nav navbar-nav">
             <li{{if eq .Menu "latest_blocks"}} class="active"{{end}}><a href="/">Latest blocks</a></li>
             <li{{if eq .Menu "utxs"}} class="active"{{end}}><a href="/unconfirmed-transactions">Unconfirmed transactions</a></li>
+            <li{{if eq .Menu "status"}} class="active"{{end}}><a href="/status">Status</a></li>
             <li><a href="http://docs.btcplex.com">Documentation</a></li>
             <li{{if eq .Menu "about"}} class="active"{{end}}><a href="/about">About</a></li>
           </ul>
@@ -95,7 +96,7 @@
           <ul class="nav navbar-nav navbar-right visible-md visible-lg">
             <li><p class="navbar-text" style="background:#006687;border-radius:5px;padding:5px 10px;margin-top:7px;margin-bottom:7px;">{{if .BtcplexSynced}}<i data-toggle="tooltip" data-placement="bottom" title="Up to date" class="glyphicon glyphicon-ok ttip"></i>{{else}}
             <i data-toggle="tooltip" data-placement="bottom" title="Out of sync" class="glyphicon glyphicon-warning-sign ttip"></i>
-            {{end}}&nbsp; · &nbsp;Height: <strong id="lastheight">#{{.LastHeight}}</strong></p></li>
+            {{end}}&nbsp; · &nbsp;Height: <strong id="lastheight">{{.LastHeight}}</strong></p></li>
           </ul>
 <!--
 <ul class="nav navbar-nav navbar-right">
