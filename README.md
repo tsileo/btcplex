@@ -4,6 +4,8 @@ BTCplex is an open source [Bitcoin](http://bitcoin.org/) block chain browser wri
 
 **This is an early release, you might expect some bugs.**
 
+Currently working on a different implementation, with a smaller db, and fetching tx on the fly without storing Tx/TxIn/TxOut in BTCplex db.
+
 ## Requirements
 
 - A [bitcoind](https://github.com/bitcoin/bitcoin/) instance (you can [build bitcoind in Disable-wallet mode](https://github.com/bitcoin/bitcoin/blob/master/doc/build-unix.md#disable-wallet-mode))
