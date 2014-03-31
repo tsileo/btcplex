@@ -100,6 +100,7 @@ func getGOMAXPROCS() int {
 }
 
 func main() {
+	log.Println("light")
 	fmt.Printf("GOMAXPROCS is %d\n", getGOMAXPROCS())
 	confFile := "config.json"
 	conf, err := btcplex.LoadConfig(confFile)
@@ -276,8 +277,8 @@ func main() {
 					ntxo.Addr = txo.Addr
 					ntxo.Value = txo.Value
 					ntxo.Index = uint32(txo_index)
-					txospent := new(TxoSpent)
-					ntxo.Spent = txospent
+					//txospent := new(TxoSpent)
+					//ntxo.Spent = txospent
 					ntxocached := new(TxOutCached)
 					ntxocached.Addr = txo.Addr
 					ntxocached.Value = txo.Value
@@ -285,9 +286,9 @@ func main() {
 					ntxocachedjson, _ := json.Marshal(ntxocached)
 					ldb.Put(wo, []byte(fmt.Sprintf("txo:%v:%v", tx.Hash, txo_index)), ntxocachedjson)
 
-					ntxojson, _ := json.Marshal(ntxo)
+					//ntxojson, _ := json.Marshal(ntxo)
 					ntxokey := fmt.Sprintf("txo:%v:%v", tx.Hash, txo_index)
-					conn.Do("SET", ntxokey, ntxojson)
+					conn.Do("SET", ntxokey, ntxocachedjson)
 
 					//conn.Send("ZADD", fmt.Sprintf("txo:%v", tx.Hash), txo_index, ntxokey)
 					conn.Do("ZADD", fmt.Sprintf("addr:%v", ntxo.Addr), bl.BlockTime, tx.Hash)
@@ -373,12 +374,12 @@ func main() {
 						//atomic.AddUint32(txis_cnt, 1)
 
 						//log.Println("Starting update prev txo")
-						ntxijson, _ := json.Marshal(ntxi)
-						ntxikey := fmt.Sprintf("txi:%v:%v", tx.Hash, txi_index)
+						//ntxijson, _ := json.Marshal(ntxi)
+						//ntxikey := fmt.Sprintf("txi:%v:%v", tx.Hash, txi_index)
 
 						txospentjson, _ := json.Marshal(txospent)
 
-						conn.Do("SET", ntxikey, ntxijson)
+						//conn.Do("SET", ntxikey, ntxijson)
 						//conn.Send("ZADD", fmt.Sprintf("txi:%v", tx.Hash), txi_index, ntxikey)
 
 						conn.Do("SET", fmt.Sprintf("txo:%v:%v:spent", txi.InputHash, txi.InputVout), txospentjson)
@@ -415,11 +416,11 @@ func main() {
 			ntx.BlockHeight = block_height
 			ntx.BlockTime = bl.BlockTime
 
-			ntxjson, _ := json.Marshal(ntx)
-			ntxjsonkey := fmt.Sprintf("tx:%v", ntx.Hash)
-			conn.Do("SET", ntxjsonkey, ntxjson)
+			//ntxjson, _ := json.Marshal(ntx)
+			//ntxjsonkey := fmt.Sprintf("tx:%v", ntx.Hash)
+			//conn.Do("SET", ntxjsonkey, ntxjson)
 			conn.Do("ZADD", fmt.Sprintf("tx:%v:blocks", tx.Hash), bl.BlockTime, bl.Hash)
-			conn.Do("ZADD", fmt.Sprintf("block:%v:txs", block.Hash), tx_index, ntxjsonkey)
+			conn.Do("ZADD", fmt.Sprintf("block:%v:txs", block.Hash), tx_index, ntx.Hash)
 
 			ntx.TxIns = txis
 			ntx.TxOuts = txos
