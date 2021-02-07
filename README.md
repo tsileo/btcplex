@@ -14,8 +14,7 @@ BTCplex is an open source [Bitcoin](http://bitcoin.org/) block chain browser wri
 
 Building BTCplex database takes **1+ week** on a small server (dual core 1.2GHz/6GB RAM) and **28 hours** on a more powerful server (i5/16GB RAM).
 
-##Installation
-
+## Installation
 Assuming you have:
 - a working Go workspace (and ``$GOPATH`` already set)
 - [Redis 2.6+](http://redis.io/)
@@ -68,12 +67,12 @@ Some features that are on my TODO list:
 - Provides supervisord config
 - ... (don't hesitate to request features!)
 
-## Documentation:
 
+## Documentation:
 The documentation is written in Markdown and is available in the docs directory, it's also available online (powered by [MkDocs](http://www.mkdocs.org/)) on [docs.btcplex.com](http://docs.btcplex.com). 
 
-## Contribution:
 
+## Contribution:
 Contribution are welcome, see [HACKING.md](HACKING.md) and [DESIGN.md](DESIGN.md) to get started.
 
 
@@ -81,11 +80,11 @@ Contribution are welcome, see [HACKING.md](HACKING.md) and [DESIGN.md](DESIGN.md
 You can ping me @trucsdedev/contact@btcplex.com/thomas.sileo@gmail.com if you have any feedback/issue.
 
 
-## Donation
+## Donation
 BTC: 16obt7HXb3PmyDb1wZMA2X7HYPUPHp45GB
 
 
-## License (MIT)
+## License (MIT)
 Copyright (c) 2014 Thomas Sileo
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
